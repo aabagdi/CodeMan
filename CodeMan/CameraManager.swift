@@ -6,25 +6,48 @@
 //
 
 import Foundation
-import AVFoundation
+@preconcurrency import AVFoundation
 import UIKit
 
-class CameraManager: NSObject {
+enum CameraError: LocalizedError {
+  case notAuthorized
+  case deviceNotAvailable
+  case deviceInputFailed
+  case cannotAddInput
+  case cannotAddOutput
+  case sessionNotConfigured
+  case captureDeviceNotFound
+  
+  var errorDescription: String? {
+    switch self {
+    case .notAuthorized:
+      return "Camera access not authorized"
+    case .deviceNotAvailable:
+      return "Camera device is not available"
+    case .deviceInputFailed:
+      return "Failed to create device input"
+    case .cannotAddInput:
+      return "Unable to add device input to capture session"
+    case .cannotAddOutput:
+      return "Unable to add output to capture session"
+    case .sessionNotConfigured:
+      return "Camera session is not configured"
+    case .captureDeviceNotFound:
+      return "No capture device found"
+    }
+  }
+}
+
+actor CameraManager: NSObject {
   private let session = AVCaptureSession()
   
   private var isSessionConfigured = false
   private var deviceInput: AVCaptureDeviceInput?
   private var photoOutput: AVCapturePhotoOutput?
   private var videoOutput: AVCaptureVideoDataOutput?
-  private var sessionQueue: DispatchQueue!
   
   private var allCaptureDevices: [AVCaptureDevice] {
     AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInTrueDepthCamera, .builtInDualCamera, .builtInDualWideCamera, .builtInWideAngleCamera, .builtInDualWideCamera], mediaType: .video, position: .unspecified).devices
-  }
-  
-  private var frontCaptureDevices: [AVCaptureDevice] {
-    allCaptureDevices
-      .filter { $0.position == .front }
   }
   
   private var backCaptureDevices: [AVCaptureDevice] {
@@ -32,141 +55,224 @@ class CameraManager: NSObject {
       .filter { $0.position == .back }
   }
   
-  private var captureDevices: [AVCaptureDevice] {
-    var devices = [AVCaptureDevice]()
-    
-    if let frontCam = frontCaptureDevices.first {
-      devices.append(frontCam)
-    }
-    
-    if let backCam = backCaptureDevices.first {
-      devices.append(backCam)
-    }
-    
-    return devices
-  }
-  
   private var availableDevices: [AVCaptureDevice] {
-    captureDevices
+    backCaptureDevices
       .filter { $0.isConnected }
       .filter { !$0.isSuspended }
   }
   
-  private var captureDevice: AVCaptureDevice? {
-    didSet {
-      guard let captureDevice else { return }
-      
-      sessionQueue.async {
-        self.updateSessionForCaptureDevice(for: captureDevice)
-      }
-    }
+  private var captureDevice: AVCaptureDevice?
+  
+  private enum RotationAngle: CGFloat {
+    case portrait = 90
+    case portraitUpsideDown = 270
+    case landscapeRight = 180
+    case landscapeLeft = 0
   }
   
   var isRunning: Bool {
     session.isRunning
   }
   
-  var isUsingFront: Bool {
-    guard let captureDevice else { return false }
-    
-    return frontCaptureDevices.contains(captureDevice)
-  }
-  
-  var isUsingBack: Bool {
-    guard let captureDevice else { return false }
-    
-    return backCaptureDevices.contains(captureDevice)
-  }
-  
-  private var addToPhotoStream: ((AVCapturePhoto) -> Void)?
-  
-  lazy var photoStream: AsyncStream<AVCapturePhoto> = {
-    AsyncStream { continuation in
-      addToPhotoStream  = { photo in
-        continuation.yield(photo)
-      }
-    }
-  }()
+  private let photoStreamContinuation: AsyncStream<AVCapturePhoto>.Continuation
+  nonisolated let photoStream: AsyncStream<AVCapturePhoto>
   
   var isPreviewPaused = false
-  
-  private var addToPreviewStream: ((CIImage) -> Void)?
-  
-  lazy var previewStream: AsyncStream<CIImage> = {
-    AsyncStream { continuation in
-      addToPreviewStream = { photo in
-        continuation.yield(photo)
-      }
-    }
-  }()
+  private let previewStreamContinuation: AsyncStream<CIImage>.Continuation
+  nonisolated let previewStream: AsyncStream<CIImage>
   
   override init() {
+    var photoContinuation: AsyncStream<AVCapturePhoto>.Continuation!
+    let photoStream = AsyncStream<AVCapturePhoto> { continuation in
+      photoContinuation = continuation
+    }
+    self.photoStream = photoStream
+    self.photoStreamContinuation = photoContinuation
+    
+    var previewContinuation: AsyncStream<CIImage>.Continuation!
+    let previewStream = AsyncStream<CIImage> { continuation in
+      previewContinuation = continuation
+    }
+    self.previewStream = previewStream
+    self.previewStreamContinuation = previewContinuation
+    
     super.init()
     
     session.sessionPreset = .photo
-    
-    sessionQueue = DispatchQueue(label: "CodeMan Camera Session Queue")
-    
-    captureDevice = availableDevices.first ?? AVCaptureDevice.default(for: .video)
+    captureDevice = nil
   }
   
-  func start() async {
+  private func ensureCaptureDevice() {
+    if captureDevice == nil {
+      captureDevice = availableDevices.first ?? AVCaptureDevice.default(for: .video)
+    }
+  }
+  
+  func start() async throws {
+    ensureCaptureDevice()
+    
     let authorized = await checkAuthorization()
     
     guard authorized else {
-      print("Camera use not authorized")
-      return
+      throw CameraError.notAuthorized
     }
     
     if isSessionConfigured {
       if !session.isRunning {
-        sessionQueue.async { [weak self] in
-          self?.session.startRunning()
-        }
+        session.startRunning()
       }
+      return
     }
     
-    sessionQueue.async { [weak self] in
-      self?.configureCaptureSession { success in
-        guard success else { return }
-        self?.session.startRunning()
-      }
-    }
+    try await configureCaptureSession()
+    session.startRunning()
   }
   
-  func stop() {
-    guard isSessionConfigured else { return }
+  func stop() throws {
+    guard isSessionConfigured else {
+      throw CameraError.sessionNotConfigured
+    }
     
     if session.isRunning {
-      sessionQueue.async { [weak self] in
-        self?.session.stopRunning()
-      }
+      session.stopRunning()
     }
   }
   
-  func switchCaptureDevice() {
-    if let captureDevice = captureDevice, let index = captureDevices.firstIndex(of: captureDevice) {
-      let nextIndex = (index + 1) % captureDevices.count
-      self.captureDevice = captureDevices[nextIndex]
-    } else {
-      self.captureDevice = AVCaptureDevice.default(for: .video)
-    }
+  func setPreviewPaused(_ paused: Bool) {
+    isPreviewPaused = paused
   }
   
-  func takePhoto() {
-    guard let photoOutput else { return }
+  func takePhoto() async throws {
+    guard let photoOutput else {
+      throw CameraError.sessionNotConfigured
+    }
     
-    sessionQueue.async {
-      var photoSettings = AVCapturePhotoSettings()
-      
-      if photoOutput.availablePhotoCodecTypes.contains(.hevc) {
-        photoSettings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
+    var photoSettings = AVCapturePhotoSettings()
+    
+    if photoOutput.availablePhotoCodecTypes.contains(.hevc) {
+      photoSettings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
+    }
+    
+    let isFlashAvailable = self.deviceInput?.device.isFlashAvailable ?? false
+    photoSettings.flashMode = isFlashAvailable ? .auto : .off
+    
+    if let previewPhotoPixelFormatTypes = photoSettings.availablePreviewPhotoPixelFormatTypes.first {
+      photoSettings.previewPhotoFormat = [kCVPixelBufferPixelFormatTypeKey as String: previewPhotoPixelFormatTypes]
+    }
+    
+    photoSettings.photoQualityPrioritization = .quality
+    
+    if let photoOutputVideoConnection = photoOutput.connection(with: .video) {
+      photoOutputVideoConnection.videoRotationAngle = RotationAngle.portrait.rawValue
+    }
+    
+    photoOutput.capturePhoto(with: photoSettings, delegate: self)
+  }
+  
+  private func deviceInputFor(device: AVCaptureDevice?) throws -> AVCaptureDeviceInput {
+    guard let device else {
+      throw CameraError.deviceNotAvailable
+    }
+    
+    do {
+      return try AVCaptureDeviceInput(device: device)
+    } catch {
+      throw CameraError.deviceInputFailed
+    }
+  }
+  
+  private func configureCaptureSession() async throws {
+    guard let captureDevice else {
+      throw CameraError.captureDeviceNotFound
+    }
+    
+    let deviceInput = try AVCaptureDeviceInput(device: captureDevice)
+    
+    self.session.beginConfiguration()
+    
+    defer {
+      self.session.commitConfiguration()
+    }
+    
+    let movieFileOutput = AVCaptureMovieFileOutput()
+    
+    let photoOutput = AVCapturePhotoOutput()
+    session.sessionPreset = AVCaptureSession.Preset.photo
+    
+    let videoOutput = AVCaptureVideoDataOutput()
+    videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "VideoDataOutputQueue"))
+    
+    guard session.canAddInput(deviceInput) else {
+      throw CameraError.cannotAddInput
+    }
+    guard session.canAddOutput(photoOutput) else {
+      throw CameraError.cannotAddOutput
+    }
+    guard session.canAddOutput(videoOutput) else {
+      throw CameraError.cannotAddOutput
+    }
+    
+    session.addInput(deviceInput)
+    session.addOutput(photoOutput)
+    session.addOutput(videoOutput)
+    session.addOutput(movieFileOutput)
+    
+    self.deviceInput = deviceInput
+    self.photoOutput = photoOutput
+    self.videoOutput = videoOutput
+    
+    photoOutput.maxPhotoQualityPrioritization = .quality
+    
+    updateVideoOutputConnection()
+    
+    isSessionConfigured = true
+  }
+  
+  private func checkAuthorization() async -> Bool {
+    switch AVCaptureDevice.authorizationStatus(for: .video) {
+    case .authorized:
+      print("Camera access authorized.")
+      return true
+    case .notDetermined:
+      print("Camera access not determined.")
+      return await AVCaptureDevice.requestAccess(for: .video)
+    case .denied:
+      print("Camera access denied.")
+      return false
+    case .restricted:
+      print("Camera library access restricted.")
+      return false
+    default:
+      return false
+    }
+  }
+  
+  private func updateVideoOutputConnection() {
+    if let videoOutput, let videoOutputConnection = videoOutput.connection(with: .video) {
+      if videoOutputConnection.isVideoMirroringSupported {
+        videoOutputConnection.isVideoMirrored = false
       }
-      
-      let isFlashAvailable = self.deviceInput?.device.isFlashAvailable ?? false
-      photoSettings.flashMode = isFlashAvailable ? .auto : .off
-      
-      
     }
   }
 }
+
+extension CameraManager: @preconcurrency AVCapturePhotoCaptureDelegate {
+  nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+    
+    if let error = error {
+      print("Error capturing photo: \(error.localizedDescription)")
+      return
+    }
+    
+    photoStreamContinuation.yield(photo)
+  }
+}
+
+extension CameraManager: @preconcurrency AVCaptureVideoDataOutputSampleBufferDelegate {
+  nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+    guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
+    connection.videoRotationAngle = RotationAngle.portrait.rawValue
+    previewStreamContinuation.yield(CIImage(cvPixelBuffer: pixelBuffer))
+  }
+}
+
