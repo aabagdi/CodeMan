@@ -61,6 +61,14 @@ class CameraModel {
   func pausePreview() async {
     await camera.setPreviewPaused(true)
   }
+  
+  func focusCamera(at point: CGPoint) async {
+    do {
+      try await camera.setFocusPoint(point)
+    } catch {
+      print("Failed to set focus point: \(error)")
+    }
+  }
 }
 
 fileprivate extension CIImage {

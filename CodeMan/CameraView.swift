@@ -13,7 +13,6 @@ struct CameraView: View {
   var body: some View {
     
     ZStack {
-      // Keep a constant black background
       Color.black
         .ignoresSafeArea(.all)
       

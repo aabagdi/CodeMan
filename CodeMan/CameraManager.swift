@@ -169,6 +169,33 @@ actor CameraManager: NSObject {
     photoOutput.capturePhoto(with: photoSettings, delegate: self)
   }
   
+  func setFocusPoint(_ point: CGPoint) throws {
+    guard let device = captureDevice else {
+      throw CameraError.captureDeviceNotFound
+    }
+    
+    guard device.isFocusPointOfInterestSupported else {
+      return
+    }
+    
+    do {
+      try device.lockForConfiguration()
+      
+      device.focusPointOfInterest = point
+      device.focusMode = .autoFocus
+      
+      if device.isExposurePointOfInterestSupported {
+        device.exposurePointOfInterest = point
+        device.exposureMode = .autoExpose
+      }
+      
+      device.unlockForConfiguration()
+    } catch {
+      print("Could not lock device for configuration: \(error)")
+      throw error
+    }
+  }
+  
   private func deviceInputFor(device: AVCaptureDevice?) throws -> AVCaptureDeviceInput {
     guard let device else {
       throw CameraError.deviceNotAvailable
