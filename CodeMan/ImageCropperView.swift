@@ -132,8 +132,13 @@ struct ImageCropperView: View {
   }
   
   private func cropImage() {
-    guard let uiImage = UIImage(data: image.imageData),
-          let cgImage = uiImage.cgImage else {
+    guard let uiImage = UIImage(data: image.imageData) else {
+      return
+    }
+    
+    let normalizedImage = uiImage.normalizedImage()
+    
+    guard let cgImage = normalizedImage.cgImage else {
       return
     }
     

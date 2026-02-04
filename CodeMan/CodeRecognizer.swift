@@ -12,12 +12,14 @@ import UIKit
 @Observable
 class CodeRecognizer {
   var observations = [VNRecognizedTextObservation]()
+  var fullCodeBlock = ""
   
   var isDoneRecognizing = false
   
   func performRecognition(_ image: PhotoData) async throws {
     isDoneRecognizing = false
     observations.removeAll()
+    fullCodeBlock = ""
     
     let request = VNRecognizeTextRequest()
     request.usesLanguageCorrection = false
@@ -41,9 +43,22 @@ class CodeRecognizer {
     
     if let results = request.results {
       observations = results
+      fullCodeBlock = combineObservationsIntoCodeBlock(results)
     }
     
     isDoneRecognizing = true
+  }
+  
+  private func combineObservationsIntoCodeBlock(_ observations: [VNRecognizedTextObservation]) -> String {
+    let sortedObservations = observations.sorted { obs1, obs2 in
+      obs1.boundingBox.origin.y > obs2.boundingBox.origin.y
+    }
+    
+    let lines = sortedObservations.compactMap { observation -> String? in
+      observation.topCandidates(1).first?.string
+    }.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    
+    return lines.joined(separator: "\n")
   }
   
   private func createCGImage(from data: Data) -> CGImage? {

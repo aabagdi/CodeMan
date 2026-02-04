@@ -27,7 +27,8 @@ actor TranslationSessionManager {
   init() {
     let instructions = """
            Your job is to translate pseudocode or handwritten code in ANY language
-           to the equivalent Python. Try to be as accurate as possible.
+           to the equivalent Python. Try to be as accurate as possible. In your
+           response, only give the code, and no other text.
            
            You should translate:
            - All programming code (Swift, Java, C++, JavaScript, etc.)
@@ -37,6 +38,7 @@ actor TranslationSessionManager {
            - Control flow statements (if/then/else, for/while loops)
            - Function/procedure definitions
            - Data structure operations (add, remove, insert, etc.)
+           - If there are comments in the code, put them in the appropriate place in your response
            
            IMPORTANT: If the input is clearly not code or pseudocode (e.g., regular prose,
            titles, headers, page numbers, or conversational text that isn't describing an algorithm),
@@ -47,6 +49,7 @@ actor TranslationSessionManager {
            - "for each item in list"
            - "var x := 5"
            - "if condition then do something"
+           - "return x"
            
            Examples of what NOT to translate (respond with "NOT_CODE"):
            - "Chapter 5: Sorting Algorithms"
@@ -119,6 +122,7 @@ actor TranslationSessionManager {
       }
     }
     
-    return translations.joined(separator: "\n")
+    return translations
+      .joined(separator: "\n")
   }
 }

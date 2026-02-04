@@ -13,37 +13,15 @@ struct RecognitionView: View {
   
   @State private var recognizer = CodeRecognizer()
   @State private var translator = PythonTranslator()
-  @State private var translatedTexts: [String: String] = [:]
+  @State private var translatedCode = ""
   @State private var isTranslating = false
   
-  private var codeObservations: [(Int, VNRecognizedTextObservation)] {
-    recognizer.observations.enumerated().compactMap { index, observation in
-      let text = observation.topCandidates(1).first?.string ?? ""
-      if looksLikeCode(text) && translatedTexts[text] != nil && !translatedTexts[text]!.isEmpty {
-        return (index, observation)
-      }
-      return nil
-    }
+  private var hasCodeToTranslate: Bool {
+    !recognizer.fullCodeBlock.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
   
-  private var allTranslationsComplete: Bool {
-    guard !recognizer.observations.isEmpty else { return false }
-    
-    for observation in recognizer.observations {
-      let text = observation.topCandidates(1).first?.string ?? ""
-      if looksLikeCode(text) && translatedTexts[text] == nil {
-        return false
-      }
-    }
-    return true
-  }
-  
-  private var combinedPythonOutput: String {
-    codeObservations.compactMap { _, observation in
-      let text = observation.topCandidates(1).first?.string ?? ""
-      return translatedTexts[text]
-    }.filter { !$0.isEmpty }
-      .joined(separator: "\n")
+  private var hasTranslatedCode: Bool {
+    !translatedCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
   
   var body: some View {
@@ -79,28 +57,27 @@ struct RecognitionView: View {
           Text("No text found in image")
             .foregroundStyle(.secondary)
             .padding()
-        } else if codeObservations.isEmpty && allTranslationsComplete {
+        } else if !hasCodeToTranslate && recognizer.isDoneRecognizing {
           Text("No code found in image")
             .foregroundStyle(.secondary)
             .padding()
         } else {
-          if !codeObservations.isEmpty {
+          if hasCodeToTranslate {
             VStack(alignment: .leading, spacing: 8) {
               Text("Original:")
                 .font(.headline)
                 .padding(.horizontal)
               
-              ForEach(codeObservations, id: \.0) { index, observation in
-                let originalText = observation.topCandidates(1).first?.string ?? ""
-                
-                Text(originalText)
+              ScrollView(.horizontal, showsIndicators: true) {
+                Text(recognizer.fullCodeBlock)
                   .font(.system(.body, design: .monospaced))
-                  .padding(8)
+                  .padding()
                   .frame(maxWidth: .infinity, alignment: .leading)
-                  .background(Color.secondary.opacity(0.1))
-                  .cornerRadius(8)
-                  .padding(.horizontal)
+                  .textSelection(.enabled)
               }
+              .background(Color.secondary.opacity(0.1))
+              .cornerRadius(8)
+              .padding(.horizontal)
             }
             
             Divider()
@@ -111,16 +88,16 @@ struct RecognitionView: View {
                 .font(.headline)
                 .padding(.horizontal)
               
-              if isTranslating || !allTranslationsComplete {
+              if isTranslating {
                 HStack {
                   ProgressView()
-                  Text("Translating...")
+                  Text("Translating entire code block...")
                     .foregroundStyle(.secondary)
                 }
                 .padding()
-              } else {
+              } else if hasTranslatedCode {
                 ScrollView(.horizontal, showsIndicators: true) {
-                  Text(combinedPythonOutput)
+                  Text(translatedCode)
                     .font(.system(.body, design: .monospaced))
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -129,6 +106,10 @@ struct RecognitionView: View {
                 .background(Color.green.opacity(0.1))
                 .cornerRadius(8)
                 .padding(.horizontal)
+              } else {
+                Text("No code was recognized")
+                  .foregroundStyle(.secondary)
+                  .padding()
               }
             }
           } else if isTranslating {
@@ -154,79 +135,40 @@ struct RecognitionView: View {
   }
   
   private func translateAllText() async {
-    isTranslating = true
-    
-    let sortedObservations = recognizer.observations.sorted { obs1, obs2 in
-      obs1.boundingBox.origin.y > obs2.boundingBox.origin.y
+    guard hasCodeToTranslate else {
+      print("No code to translate")
+      return
     }
     
-    for observation in sortedObservations {
-      let originalText = observation.topCandidates(1).first?.string ?? ""
-      guard !originalText.isEmpty else { continue }
+    isTranslating = true
+    
+    do {
+      print("Translating entire code block:\n\(recognizer.fullCodeBlock)")
+      let translated = try await translator.translate(recognizer.fullCodeBlock)
       
-      guard looksLikeCode(originalText) else {
-        print("Skipping non-code text: \(originalText)")
-        translatedTexts[originalText] = ""
-        continue
+      if translated.isEmpty || translated == "NOT_CODE" {
+        print("AI filtered out the code block")
+        translatedCode = ""
+      } else {
+        let cleanedCode = stripMarkdownCodeBlocks(from: translated)
+        translatedCode = cleanedCode
+        print("Translation complete:\n\(cleanedCode)")
       }
-      
-      do {
-        let translated = try await translator.translate(originalText)
-        translatedTexts[originalText] = translated
-        if translated.isEmpty {
-          print("AI filtered out: \(originalText)")
-        } else {
-          print("Translated: \(originalText) -> \(translated)")
-        }
-      } catch {
-        print("Translation error: \(error)")
-        translatedTexts[originalText] = ""
-      }
+    } catch {
+      print("Translation error: \(error)")
+      translatedCode = ""
     }
     
     isTranslating = false
   }
   
-  private func looksLikeCode(_ text: String) -> Bool {
-    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard trimmed.count > 2 else { return false }
+  private func stripMarkdownCodeBlocks(from text: String) -> String {
+    var result = text
     
-    let lowercased = trimmed.lowercased()
+    result = result.replacingOccurrences(of: #"^```\w*\n?"#, with: "", options: .regularExpression)
     
-    let obviousNonCode = [
-      "top-down implementation",
-      "pseudocode for",
-      "[ edit ]", "[edit]",
-      "page ", "chapter ", "section ", "figure ",
-      "http://", "https://", "www."
-    ]
+    result = result.replacingOccurrences(of: #"\n?```$"#, with: "", options: .regularExpression)
     
-    for marker in obviousNonCode {
-      if lowercased.contains(marker) {
-        return false
-      }
-    }
-    
-    let words = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
-    if words.count > 15 {
-      let hasAnyCodeMarker = trimmed.contains(where: { "()[]{}=;:".contains($0) }) ||
-                             lowercased.contains("function") ||
-                             lowercased.contains(" := ") ||
-                             lowercased.contains("var ") ||
-                             lowercased.contains("if ") ||
-                             lowercased.contains("for ") ||
-                             lowercased.contains("return")
-      
-      if !hasAnyCodeMarker {
-        return false
-      }
-    }
-    
-    if words.count == 1 {
-      let hasSpecialChars = trimmed.contains(where: { "()[]{}=;:".contains($0) })
-      return hasSpecialChars
-    }
-    
-    return true
+    return result.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 }
