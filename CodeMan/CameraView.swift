@@ -56,7 +56,6 @@ struct CameraView: View {
       await model.handleCameraPhotos()
     }
     .onDisappear {
-      // Reset orientation lock when leaving camera view
       AppDelegate.orientationLock = .all
     }
     .ignoresSafeArea(.all)
