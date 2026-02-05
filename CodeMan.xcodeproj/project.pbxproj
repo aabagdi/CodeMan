@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		3936FB4F2F32F66E00BE071C /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 3936FB4E2F32F66E00BE071C /* Highlightr */; };
+		39EF7F972F33E1AC00C124B8 /* Highlighter in Frameworks */ = {isa = PBXBuildFile; productRef = 39EF7F962F33E1AC00C124B8 /* Highlighter */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,7 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3936FB4F2F32F66E00BE071C /* Highlightr in Frameworks */,
+				39EF7F972F33E1AC00C124B8 /* Highlighter in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,7 +70,7 @@
 			);
 			name = CodeMan;
 			packageProductDependencies = (
-				3936FB4E2F32F66E00BE071C /* Highlightr */,
+				39EF7F962F33E1AC00C124B8 /* Highlighter */,
 			);
 			productName = CodeMan;
 			productReference = 39AB77382F3095BF007B2638 /* CodeMan.app */;
@@ -101,7 +101,7 @@
 			mainGroup = 39AB772F2F3095BF007B2638;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				3936FB4D2F32F66E00BE071C /* XCRemoteSwiftPackageReference "Highlightr" */,
+				39EF7F952F33E1AC00C124B8 /* XCRemoteSwiftPackageReference "HighlighterSwift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 39AB77392F3095BF007B2638 /* Products */;
@@ -349,21 +349,21 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		3936FB4D2F32F66E00BE071C /* XCRemoteSwiftPackageReference "Highlightr" */ = {
+		39EF7F952F33E1AC00C124B8 /* XCRemoteSwiftPackageReference "HighlighterSwift" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/raspu/Highlightr";
+			repositoryURL = "https://github.com/smittytone/HighlighterSwift";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.3.0;
+				branch = develop;
+				kind = branch;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		3936FB4E2F32F66E00BE071C /* Highlightr */ = {
+		39EF7F962F33E1AC00C124B8 /* Highlighter */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 3936FB4D2F32F66E00BE071C /* XCRemoteSwiftPackageReference "Highlightr" */;
-			productName = Highlightr;
+			package = 39EF7F952F33E1AC00C124B8 /* XCRemoteSwiftPackageReference "HighlighterSwift" */;
+			productName = Highlighter;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

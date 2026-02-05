@@ -1,13 +1,13 @@
 {
-  "originHash" : "0a8fce6d3cd251ad12ea6d2f48f55bfdc4fa43f93e39dce01f4b2baa78e6feb8",
+  "originHash" : "00a1c96095892a05bfd089593813422ede18735e452666e3e7a642ebd9048a45",
   "pins" : [
     {
-      "identity" : "highlightr",
+      "identity" : "highlighterswift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/raspu/Highlightr",
+      "location" : "https://github.com/smittytone/HighlighterSwift",
       "state" : {
-        "revision" : "05e7fcc63b33925cd0c1faaa205cdd5681e7bbef",
-        "version" : "2.3.0"
+        "branch" : "develop",
+        "revision" : "b45ffac82dcc073f79a06eb629ce46949bde1810"
       }
     }
   ],

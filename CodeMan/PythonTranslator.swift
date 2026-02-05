@@ -50,6 +50,7 @@ actor TranslationSessionManager {
            - "var x := 5"
            - "if condition then do something"
            - "return x"
+           - "let x = "Hello World""
            
            Examples of what NOT to translate (respond with "NOT_CODE"):
            - "Chapter 5: Sorting Algorithms"

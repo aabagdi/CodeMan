@@ -7,7 +7,7 @@
 
 import SwiftUI
 import Vision
-import Highlightr
+import Highlighter
 
 struct RecognitionView: View {
   let image: PhotoData?
@@ -153,13 +153,14 @@ struct RecognitionView: View {
       } else {
         let cleanedCode = stripMarkdownCodeBlocks(from: translated)
         
-        let highlightr = Highlightr()
+        guard let highlighter = Highlighter() else { return }
         
-        highlightr?.setTheme(to: "paraiso-dark")
+        highlighter.setTheme("atom-one-light")
         
-        let highlightedCode = highlightr?.highlight(cleanedCode, as: "python") ?? NSAttributedString(string: "Syntax highlighting error")
-        translatedCode = AttributedString(highlightedCode)
-        print("Translation complete:\n\(cleanedCode)")
+        if let highlightedCode = highlighter.highlight(cleanedCode, as: "python") {
+          translatedCode = AttributedString(highlightedCode)
+          print("Translation complete:\n\(cleanedCode)")
+        }
       }
     } catch {
       print("Translation error: \(error)")

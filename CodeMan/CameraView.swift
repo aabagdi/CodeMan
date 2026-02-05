@@ -11,7 +11,6 @@ struct CameraView: View {
   @State private var model = CameraModel()
   
   var body: some View {
-    
     ZStack {
       Color.black
         .ignoresSafeArea(.all)
@@ -38,7 +37,14 @@ struct CameraView: View {
     .animation(.easeInOut(duration: 0.2), value: model.photoTaken != nil)
     .task {
       do {
-       try await model.camera.start()
+        AppDelegate.orientationLock = .portrait
+        
+        try await model.camera.start()
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootViewController = windowScene.windows.first?.rootViewController {
+          rootViewController.setNeedsUpdateOfSupportedInterfaceOrientations()
+        }
       } catch {
         print("Camera not started")
       }
@@ -48,6 +54,10 @@ struct CameraView: View {
     }
     .task {
       await model.handleCameraPhotos()
+    }
+    .onDisappear {
+      // Reset orientation lock when leaving camera view
+      AppDelegate.orientationLock = .all
     }
     .ignoresSafeArea(.all)
     .environment(model)
