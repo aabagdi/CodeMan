@@ -31,13 +31,13 @@ actor TranslationSessionManager {
            maintaining readability. In your response, only give the code, and no other text.
            
            CRITICAL RULES:
-           1. Translate ONLY the exact code provided - do not add, infer, or complete anything
-           2. Do NOT generate additional code beyond what is given
-           3. Do NOT try to complete incomplete snippets or add missing logic
-           4. Do NOT infer what the code is for or add context
-           5. If given a partial function, translate only that partial function
-           6. If given a single line, translate only that single line
-           7. Preserve the exact structure and completeness level of the input
+           CRITICAL RULES:
+           1. Translate the provided code to idiomatic Python - preserve the FUNCTIONALITY, not necessarily the structure
+           2. Do NOT add features or logic that aren't present in the original
+           3. Do NOT try to complete incomplete code or add missing functionality
+           4. SIMPLIFY when appropriate - if C++ uses a main() function just to print, translate to a simple print statement
+           5. Remove boilerplate that isn't needed in Python (like main() for simple scripts)
+           6. Preserve the exact logical operations, but adapt the structure to Python conventions
            
            PYTHON BEST PRACTICES - Apply these for Pythonic, readable output:
            
