@@ -271,8 +271,8 @@ struct ConfirmImageView: View {
     let clampedWidth = max(0, min(1 - clampedX, relativeWidth))
     let clampedHeight = max(0, min(1 - clampedY, relativeHeight))
     
-    print("📊 Relative rect: x=\(relativeX), y=\(relativeY), w=\(relativeWidth), h=\(relativeHeight)")
-    print("🔒 Clamped: x=\(clampedX), y=\(clampedY), w=\(clampedWidth), h=\(clampedHeight)")
+    print("Relative rect: x=\(relativeX), y=\(relativeY), w=\(relativeWidth), h=\(relativeHeight)")
+    print("Clamped: x=\(clampedX), y=\(clampedY), w=\(clampedWidth), h=\(clampedHeight)")
     
     let cropX = clampedX * CGFloat(cgImage.width)
     let cropY = clampedY * CGFloat(cgImage.height)
@@ -281,21 +281,21 @@ struct ConfirmImageView: View {
     
     let cropRect = CGRect(x: cropX, y: cropY, width: cropWidth, height: cropHeight)
     
-    print("✅ Final crop rect: \(cropRect)")
+    print("Final crop rect: \(cropRect)")
     
     guard let croppedCGImage = cgImage.cropping(to: cropRect) else {
-      print("❌ Failed to crop CGImage")
+      print("Failed to crop CGImage")
       return
     }
     
     let croppedUIImage = UIImage(cgImage: croppedCGImage)
     
     guard let croppedData = croppedUIImage.jpegData(compressionQuality: 0.9) else {
-      print("❌ Failed to convert to JPEG")
+      print("Failed to convert to JPEG")
       return
     }
     
-    print("✅ Cropped image created: \(croppedCGImage.width) × \(croppedCGImage.height)")
+    print("Cropped image created: \(croppedCGImage.width) × \(croppedCGImage.height)")
     
     croppedImage = PhotoData(
       image: Image(uiImage: croppedUIImage),

@@ -17,6 +17,8 @@ struct ImageCropperView: View {
   @State private var isDragging = false
   @State private var dragStart: CGPoint = .zero
   @State private var imageFrame: CGRect = .zero
+  @State private var isResizing = false
+  @State private var resizingCorner: Int?
   
   var body: some View {
     NavigationStack {
@@ -60,11 +62,21 @@ struct ImageCropperView: View {
               .allowsHitTesting(false)
             
             ForEach(0..<4, id: \.self) { corner in
-              Circle()
-                .fill(Color.blue)
-                .frame(width: 20, height: 20)
-                .position(handlePosition(for: corner))
-                .allowsHitTesting(false)
+              ResizeHandle(
+                position: handlePosition(for: corner),
+                corner: corner,
+                onDrag: { value in
+                  handleResize(corner: corner, dragValue: value)
+                },
+                onEnd: {
+                  isResizing = false
+                  resizingCorner = nil
+                },
+                onStart: {
+                  isResizing = true
+                  resizingCorner = corner
+                }
+              )
             }
           }
         }
@@ -73,6 +85,18 @@ struct ImageCropperView: View {
         .gesture(
           DragGesture(minimumDistance: 0)
             .onChanged { value in
+              guard !isResizing else { return }
+              
+              let handleRadius: CGFloat = 30
+              for corner in 0..<4 {
+                let handlePos = handlePosition(for: corner)
+                let distance = hypot(value.startLocation.x - handlePos.x,
+                                     value.startLocation.y - handlePos.y)
+                if distance < handleRadius {
+                  return
+                }
+              }
+              
               if !isDragging {
                 isDragging = true
                 dragStart = value.startLocation
@@ -129,6 +153,58 @@ struct ImageCropperView: View {
     default:
       return .zero
     }
+  }
+  
+  private func handleResize(corner: Int, dragValue: DragGesture.Value) {
+    if !isResizing {
+      isResizing = true
+      resizingCorner = corner
+    }
+    
+    let location = dragValue.location
+    var newRect = selectionRect
+    
+    switch corner {
+    case 0: // Top-left
+      newRect = CGRect(
+        x: location.x,
+        y: location.y,
+        width: selectionRect.maxX - location.x,
+        height: selectionRect.maxY - location.y
+      )
+    case 1: // Top-right
+      newRect = CGRect(
+        x: selectionRect.minX,
+        y: location.y,
+        width: location.x - selectionRect.minX,
+        height: selectionRect.maxY - location.y
+      )
+    case 2: // Bottom-left
+      newRect = CGRect(
+        x: location.x,
+        y: selectionRect.minY,
+        width: selectionRect.maxX - location.x,
+        height: location.y - selectionRect.minY
+      )
+    case 3: // Bottom-right
+      newRect = CGRect(
+        x: selectionRect.minX,
+        y: selectionRect.minY,
+        width: location.x - selectionRect.minX,
+        height: location.y - selectionRect.minY
+      )
+    default:
+      break
+    }
+    
+    if newRect.width < 0 {
+      newRect = CGRect(x: newRect.maxX, y: newRect.minY, width: abs(newRect.width), height: newRect.height)
+    }
+    if newRect.height < 0 {
+      newRect = CGRect(x: newRect.minX, y: newRect.maxY, width: newRect.width, height: abs(newRect.height))
+    }
+    
+    selectionRect = newRect
   }
   
   private func cropImage() {
@@ -205,5 +281,39 @@ struct ImageCropperView: View {
     )
     
     onCropComplete(croppedPhoto)
+  }
+}
+struct ResizeHandle: View {
+  let position: CGPoint
+  let corner: Int
+  let onDrag: (DragGesture.Value) -> Void
+  let onEnd: () -> Void
+  let onStart: () -> Void  // Add this
+  
+  var body: some View {
+    Circle()
+      .fill(Color.blue)
+      .frame(width: 30, height: 30)
+      .overlay(
+        Circle()
+          .fill(Color.white)
+          .frame(width: 20, height: 20)
+      )
+      .overlay(
+        Circle()
+          .fill(Color.blue)
+          .frame(width: 12, height: 12)
+      )
+      .position(position)
+      .highPriorityGesture(
+        DragGesture(minimumDistance: 0)
+          .onChanged { value in
+            onStart()  // Call this first
+            onDrag(value)
+          }
+          .onEnded { _ in
+            onEnd()
+          }
+      )
   }
 }
