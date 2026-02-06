@@ -11,11 +11,14 @@ import Highlighter
 
 struct RecognitionView: View {
   let image: PhotoData?
+  let highlighter = Highlighter()
   
   @State private var recognizer = CodeRecognizer()
   @State private var translator = PythonTranslator()
   @State private var translatedCode: AttributedString = ""
+  @State private var translationError = ""
   @State private var isTranslating = false
+  @State private var showingTranslationError = false
   
   private var hasCodeToTranslate: Bool {
     !recognizer.fullCodeBlock.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -124,12 +127,20 @@ struct RecognitionView: View {
         }
       }
     }
+    .alert("Translation Error: \(translationError). Please try taking another photo.",
+           isPresented: $showingTranslationError) {
+      Button("OK") {
+        translationError = ""
+        showingTranslationError.toggle()
+      }
+    }
     .task {
       guard let imageData = image else { return }
       do {
         try await recognizer.performRecognition(imageData)
         await translateAllText()
       } catch {
+        showingTranslationError = true
         print("Recognition failed: \(error)")
       }
     }
@@ -153,11 +164,16 @@ struct RecognitionView: View {
       } else {
         let cleanedCode = stripMarkdownCodeBlocks(from: translated)
         
-        guard let highlighter = Highlighter() else { return }
+        guard let highlighter else { return }
+        
+        var lineNumberingData = LineNumberData()
+        lineNumberingData.minWidth = 1
+        lineNumberingData.numberStart = 1
+        lineNumberingData.fontSize = 16
         
         highlighter.setTheme("atom-one-light")
         
-        if let highlightedCode = highlighter.highlight(cleanedCode, as: "python") {
+        if let highlightedCode = highlighter.highlight(cleanedCode, as: "python", lineNumbering: lineNumberingData) {
           translatedCode = AttributedString(highlightedCode)
           print("Translation complete:\n\(cleanedCode)")
         }

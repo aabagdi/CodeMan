@@ -9,6 +9,7 @@ import SwiftUI
 
 struct CameraView: View {
   @State private var model = CameraModel()
+  @State private var showCameraError: Bool = false
   
   var body: some View {
     ZStack {
@@ -39,16 +40,20 @@ struct CameraView: View {
       do {
         AppDelegate.orientationLock = .portrait
         
-        try await model.camera.start()
-        
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let rootViewController = windowScene.windows.first?.rootViewController {
           rootViewController.setNeedsUpdateOfSupportedInterfaceOrientations()
         }
+        
+        try await model.camera.start()
       } catch {
-        print("Camera not started")
+        showCameraError = true
       }
     }
+    .alert(
+      "The camera is not starting, try restarting the app or make sure camera permissions for CodeMan are turned on.",
+      isPresented: $showCameraError
+    ) { }
     .task {
       await model.handleCameraPreviews()
     }
@@ -61,7 +66,4 @@ struct CameraView: View {
     .ignoresSafeArea(.all)
     .environment(model)
   }
-}
-#Preview {
-  CameraView()
 }
