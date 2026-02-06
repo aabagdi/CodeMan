@@ -31,7 +31,6 @@ actor TranslationSessionManager {
            maintaining readability. In your response, only give the code, and no other text.
            
            CRITICAL RULES:
-           CRITICAL RULES:
            1. Translate the provided code to idiomatic Python - preserve the FUNCTIONALITY, not necessarily the structure
            2. Do NOT add features or logic that aren't present in the original
            3. Do NOT try to complete incomplete code or add missing functionality
