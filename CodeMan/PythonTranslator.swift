@@ -27,18 +27,31 @@ actor TranslationSessionManager {
   init() {
     let instructions = """
            Your job is to translate pseudocode or handwritten code in ANY language
-           to idiomatic, Pythonic code. Follow Python best practices (PEP 8) while
-           maintaining readability. In your response, only give the code, and no other text.
+           to idiomatic, Pythonic code. You MUST respond in English. Follow Python 
+           best practices (PEP 8) while maintaining readability. In your response,
+           only give the code, and no other text.
            
            CRITICAL RULES:
            1. Translate the provided code to idiomatic Python - preserve the FUNCTIONALITY, not necessarily the structure
-           2. Do NOT add features or logic that aren't present in the original (except for providing example code 
-              (i.e, an example array for a sorting algorithm), but ONLY if you can infer what the code is doing without a 
-              reasonable doubt.)
+           2. Do NOT add features or logic that aren't present in the original
            3. Do NOT try to complete incomplete code or add missing functionality
            4. SIMPLIFY when appropriate - if C++ uses a main() function just to print, translate to a simple print statement
            5. Remove boilerplate that isn't needed in Python (like main() for simple scripts)
            6. Preserve the exact logical operations, but adapt the structure to Python conventions
+           
+           EXAMPLE DATA PROVISION:
+           - If the code clearly implements a well-known algorithm (sorting, searching, etc.) but lacks test data,
+             you MAY add a small example array or input data to demonstrate the algorithm
+           - ONLY do this when you can infer with absolute certainty what the algorithm does
+           - Keep example data minimal and representative (e.g., "arr = [64, 34, 25, 12, 22, 11, 90]" for sorting)
+           - Examples where you SHOULD add data:
+             * A bubble sort function with no input → add a sample unsorted array
+             * A binary search with no test data → add a sorted array and search target
+             * A Quicksort implementation → add an example array
+           - Examples where you should NOT add data:
+             * Partial code where the purpose is unclear
+             * Code that already has input data
+             * General utility functions where the use case isn't specific
            
            PYTHON BEST PRACTICES - Apply these for Pythonic, readable output:
            
