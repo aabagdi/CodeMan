@@ -19,25 +19,29 @@ struct ImageCropperView: View {
   @State private var imageFrame: CGRect = .zero
   @State private var isResizing = false
   @State private var resizingCorner: Int?
+
+  private var displayImage: Image {
+    if let uiImage = UIImage(data: image.imageData) {
+      return Image(uiImage: uiImage.normalizedImage())
+    }
+    return image.image
+  }
   
   var body: some View {
     NavigationStack {
       GeometryReader { geometry in
         ZStack {
-          image.image
+          Color.clear
+            .onAppear {
+              imageFrame = geometry.frame(in: .local)
+            }
+            .onChange(of: geometry.size) { _, _ in
+              imageFrame = geometry.frame(in: .local)
+            }
+          
+          displayImage
             .resizable()
             .scaledToFit()
-            .background(
-              GeometryReader { imageGeometry in
-                Color.clear
-                  .onAppear {
-                    imageFrame = imageGeometry.frame(in: .local)
-                  }
-                  .onChange(of: imageGeometry.frame(in: .local)) { _, newFrame in
-                    imageFrame = newFrame
-                  }
-              }
-            )
           
           if selectionRect != .zero {
             Rectangle()
@@ -156,11 +160,6 @@ struct ImageCropperView: View {
   }
   
   private func handleResize(corner: Int, dragValue: DragGesture.Value) {
-    if !isResizing {
-      isResizing = true
-      resizingCorner = corner
-    }
-    
     let location = dragValue.location
     var newRect = selectionRect
     
@@ -209,20 +208,28 @@ struct ImageCropperView: View {
   
   private func cropImage() {
     guard let uiImage = UIImage(data: image.imageData) else {
+      print("Failed to create UIImage from data")
       return
     }
     
     let normalizedImage = uiImage.normalizedImage()
     
     guard let cgImage = normalizedImage.cgImage else {
+      print("Failed to get CGImage")
       return
     }
     
     let displayedSize = imageFrame.size
     let actualSize = CGSize(width: cgImage.width, height: cgImage.height)
     
+    print("Display size: \(displayedSize)")
+    print("Actual image size: \(actualSize)")
+    print("Selection rect: \(selectionRect)")
+    
     let aspectRatio = actualSize.width / actualSize.height
     let displayAspect = displayedSize.width / displayedSize.height
+    
+    print("Aspect ratio: \(aspectRatio), Display aspect: \(displayAspect)")
     
     var actualImageFrame = CGRect(origin: .zero, size: displayedSize)
     if displayAspect > aspectRatio {
@@ -243,12 +250,17 @@ struct ImageCropperView: View {
       )
     }
     
+    print("Actual image frame: \(actualImageFrame)")
+    print("Actual image frame: \(actualImageFrame)")
+    
     let relativeRect = CGRect(
       x: (selectionRect.minX - actualImageFrame.minX) / actualImageFrame.width,
       y: (selectionRect.minY - actualImageFrame.minY) / actualImageFrame.height,
       width: selectionRect.width / actualImageFrame.width,
       height: selectionRect.height / actualImageFrame.height
     )
+    
+    print("Relative rect: \(relativeRect)")
     
     let clampedRect = CGRect(
       x: max(0, min(1, relativeRect.origin.x)),
@@ -257,16 +269,23 @@ struct ImageCropperView: View {
       height: max(0, min(1 - relativeRect.origin.y, relativeRect.height))
     )
     
+    print("Clamped rect: \(clampedRect)")
+    
     let cropRect = CGRect(
-      x: clampedRect.origin.x * CGFloat(cgImage.width),
-      y: clampedRect.origin.y * CGFloat(cgImage.height),
-      width: clampedRect.width * CGFloat(cgImage.width),
-      height: clampedRect.height * CGFloat(cgImage.height)
+      x: clampedRect.origin.x * actualSize.width,
+      y: clampedRect.origin.y * actualSize.height,
+      width: clampedRect.width * actualSize.width,
+      height: clampedRect.height * actualSize.height
     )
     
+    print("Final crop rect: \(cropRect)")
+    
     guard let croppedCGImage = cgImage.cropping(to: cropRect) else {
+      print("Failed to crop image")
       return
     }
+    
+    print("Successfully cropped image")
     
     let croppedUIImage = UIImage(cgImage: croppedCGImage)
     
@@ -288,7 +307,7 @@ struct ResizeHandle: View {
   let corner: Int
   let onDrag: (DragGesture.Value) -> Void
   let onEnd: () -> Void
-  let onStart: () -> Void  // Add this
+  let onStart: () -> Void
   
   var body: some View {
     Circle()
@@ -308,7 +327,7 @@ struct ResizeHandle: View {
       .highPriorityGesture(
         DragGesture(minimumDistance: 0)
           .onChanged { value in
-            onStart()  // Call this first
+            onStart()
             onDrag(value)
           }
           .onEnded { _ in

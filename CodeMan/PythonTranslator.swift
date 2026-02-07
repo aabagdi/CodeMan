@@ -32,7 +32,9 @@ actor TranslationSessionManager {
            
            CRITICAL RULES:
            1. Translate the provided code to idiomatic Python - preserve the FUNCTIONALITY, not necessarily the structure
-           2. Do NOT add features or logic that aren't present in the original
+           2. Do NOT add features or logic that aren't present in the original (except for providing example code 
+              (i.e, an example array for a sorting algorithm), but ONLY if you can infer what the code is doing without a 
+              reasonable doubt.)
            3. Do NOT try to complete incomplete code or add missing functionality
            4. SIMPLIFY when appropriate - if C++ uses a main() function just to print, translate to a simple print statement
            5. Remove boilerplate that isn't needed in Python (like main() for simple scripts)
