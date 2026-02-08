@@ -10,11 +10,32 @@ import Foundation
 import SwiftUI
 
 @Observable
+@MainActor
 class CameraModel {
   let camera = CameraManager()
   
   var previewImage: Image?
   var photoTaken: PhotoData?
+  
+  init() {
+    setupCallbacks()
+  }
+  
+  private func setupCallbacks() {
+    camera.onPreviewFrame = { [weak self] ciImage in
+      guard let self else { return }
+      Task { @MainActor in
+        self.previewImage = ciImage.image
+      }
+    }
+    
+    camera.onPhotoCaptured = { [weak self] photo in
+      guard let self else { return }
+      Task { @MainActor in
+        self.photoTaken = self.unpackPhoto(photo)
+      }
+    }
+  }
   
   func handleCameraPreviews() async {
     let imageStream = camera.previewStream
@@ -55,6 +76,7 @@ class CameraModel {
   }
   
   func resumePreview() async {
+    previewImage = nil
     await camera.setPreviewPaused(false)
   }
   

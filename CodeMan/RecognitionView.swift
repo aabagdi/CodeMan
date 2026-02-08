@@ -13,8 +13,7 @@ struct RecognitionView: View {
   @State private var viewModel = RecognitionViewModel()
   
   var body: some View {
-    NavigationStack {
-      ScrollView {
+    ScrollView {
         VStack(spacing: 16) {
           if let image {
             ImageHeaderView(
@@ -74,7 +73,6 @@ struct RecognitionView: View {
           }
         }
       }
-    }
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
         Button("Save code") {

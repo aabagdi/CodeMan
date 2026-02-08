@@ -10,6 +10,7 @@ import UIKit
 
 struct ImageCropperView: View {
   let image: PhotoData
+  let initialRotation: Int
   let onCropComplete: (PhotoData) -> Void
   let onCancel: () -> Void
   
@@ -19,10 +20,27 @@ struct ImageCropperView: View {
   @State private var imageFrame: CGRect = .zero
   @State private var isResizing = false
   @State private var resizingCorner: Int?
+  @State private var rotationAngle: Int = 0
 
+  private var rotatedUIImage: UIImage? {
+    guard let uiImage = UIImage(data: image.imageData) else { return nil }
+    let normalized = uiImage.normalizedImage()
+    
+    switch rotationAngle {
+    case 90:
+      return normalized.rotatedClockwise()
+    case 180:
+      return normalized.rotatedClockwise().rotatedClockwise()
+    case 270:
+      return normalized.rotatedCounterClockwise()
+    default:
+      return normalized
+    }
+  }
+  
   private var displayImage: Image {
-    if let uiImage = UIImage(data: image.imageData) {
-      return Image(uiImage: uiImage.normalizedImage())
+    if let rotated = rotatedUIImage {
+      return Image(uiImage: rotated)
     }
     return image.image
   }
@@ -134,12 +152,26 @@ struct ImageCropperView: View {
           }
         }
         
+        ToolbarItem(placement: .principal) {
+          Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+              rotationAngle = (rotationAngle + 90) % 360
+              selectionRect = .zero
+            }
+          } label: {
+            Label("Rotate", systemImage: "rotate.right")
+          }
+        }
+        
         ToolbarItem(placement: .confirmationAction) {
           Button("Crop") {
             cropImage()
           }
           .disabled(selectionRect == .zero || selectionRect.width < 10 || selectionRect.height < 10)
         }
+      }
+      .onAppear {
+        rotationAngle = initialRotation
       }
     }
   }
@@ -207,12 +239,10 @@ struct ImageCropperView: View {
   }
   
   private func cropImage() {
-    guard let uiImage = UIImage(data: image.imageData) else {
-      print("Failed to create UIImage from data")
+    guard let normalizedImage = rotatedUIImage else {
+      print("Failed to create rotated UIImage from data")
       return
     }
-    
-    let normalizedImage = uiImage.normalizedImage()
     
     guard let cgImage = normalizedImage.cgImage else {
       print("Failed to get CGImage")

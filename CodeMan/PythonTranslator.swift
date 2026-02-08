@@ -8,10 +8,29 @@
 import Foundation
 import FoundationModels
 
+enum TranslationError: LocalizedError {
+  case unsupportedLocale
+  case modelUnavailable
+  
+  var errorDescription: String? {
+    switch self {
+    case .unsupportedLocale:
+      return "Your device language is not supported by Apple Intelligence. Please change your device language to English (US) in Settings → General → Language & Region. (Tip: If the photo is landscape, try rotating and cropping it.)"
+    case .modelUnavailable:
+      return "The AI model is not available on this device."
+    }
+  }
+}
+
 actor TranslationSessionManager {
-  let session: LanguageModelSession
+  let session: LanguageModelSession?
   
   init() {
+    guard SystemLanguageModel.default.supportsLocale() else {
+      print("Warning: Current locale is not supported by Apple Intelligence")
+      session = nil
+      return
+    }
     let instructions = """
            Your job is to translate pseudocode or handwritten code in ANY language
            to idiomatic, Pythonic code. You MUST respond in English. Follow Python 
@@ -26,19 +45,23 @@ actor TranslationSessionManager {
            5. Remove boilerplate that isn't needed in Python (like main() for simple scripts)
            6. Preserve the exact logical operations, but adapt the structure to Python conventions
            
-           EXAMPLE DATA PROVISION:
-           - If the code clearly implements a well-known algorithm (sorting, searching, etc.) but lacks test data,
-             you MAY add a small example array or input data to demonstrate the algorithm
-           - ONLY do this when you can infer with absolute certainty what the algorithm does
-           - Keep example data minimal and representative (e.g., "arr = [64, 34, 25, 12, 22, 11, 90]" for sorting)
-           - Examples where you SHOULD add data:
-             * A bubble sort function with no input → add a sample unsorted array
-             * A binary search with no test data → add a sorted array and search target
-             * A Quicksort implementation → add an example array
-           - Examples where you should NOT add data:
-             * Partial code where the purpose is unclear
-             * Code that already has input data
-             * General utility functions where the use case isn't specific
+           EXAMPLE DATA PROVISION (MANDATORY FOR KNOWN ALGORITHMS):
+           - If the code implements a well-known algorithm (sorting, searching, tree traversal, etc.) 
+             and lacks test data, you MUST add example data to make the code runnable
+           - This is REQUIRED for: binary search, linear search, bubble sort, insertion sort, 
+             selection sort, merge sort, quicksort, heap sort, BFS, DFS, factorial, fibonacci,
+             and any other recognizable standard algorithm
+           - Keep example data minimal but representative:
+             * Sorting algorithms → add unsorted array: arr = [64, 34, 25, 12, 22, 11, 90]
+             * Binary search → add sorted array AND target: arr = [1, 3, 5, 7, 9, 11, 13]; target = 7
+             * Linear search → add array AND target: arr = [10, 20, 30, 40, 50]; target = 30
+             * Tree algorithms → add simple tree structure
+             * Recursive algorithms → add appropriate input value
+           - ALWAYS add a print statement or function call at the end to show the result
+           - Do NOT add data only when:
+             * The code already has input data defined
+             * The purpose of the code is genuinely unclear/partial
+             * It's a generic utility function (not a specific algorithm)
            
            PYTHON BEST PRACTICES - Apply these for Pythonic, readable output:
            
@@ -112,13 +135,18 @@ actor TranslationSessionManager {
   }
   
   func translate(_ input: String) async throws -> String {
+    guard let session else {
+      throw TranslationError.unsupportedLocale
+    }
+    
     let maxInputLength = 12000
     
     if input.count > maxInputLength {
       return try await translateInChunks(input, maxLength: maxInputLength)
     }
     
-    let result = try await session.respond(to: input)
+    let prompt = buildPrompt(for: input)
+    let result = try await session.respond(to: prompt)
     let content = result.content.trimmingCharacters(in: .whitespacesAndNewlines)
     
     if content == "NOT_CODE" {
@@ -126,6 +154,48 @@ actor TranslationSessionManager {
     }
     
     return content
+  }
+  
+  private func buildPrompt(for input: String) -> String {
+    let lowercased = input.lowercased()
+    
+    let algorithmPatterns: [(keywords: [String], instruction: String)] = [
+      (["binary", "search"], 
+       "\n\n[IMPORTANT: Add example data - a sorted array like [1, 3, 5, 7, 9, 11, 13] and target = 7, then call the function and print the result]"),
+      (["linear", "search"],
+       "\n\n[IMPORTANT: Add example data - an array like [10, 20, 30, 40, 50] and target = 30, then call the function and print the result]"),
+      (["bubble", "sort"],
+       "\n\n[IMPORTANT: Add example data - an unsorted array like [64, 34, 25, 12, 22, 11, 90], then call the function and print the result]"),
+      (["insertion", "sort"],
+       "\n\n[IMPORTANT: Add example data - an unsorted array like [64, 34, 25, 12, 22, 11, 90], then call the function and print the result]"),
+      (["selection", "sort"],
+       "\n\n[IMPORTANT: Add example data - an unsorted array like [64, 34, 25, 12, 22, 11, 90], then call the function and print the result]"),
+      (["merge", "sort"],
+       "\n\n[IMPORTANT: Add example data - an unsorted array like [64, 34, 25, 12, 22, 11, 90], then call the function and print the result]"),
+      (["quick", "sort"],
+       "\n\n[IMPORTANT: Add example data - an unsorted array like [64, 34, 25, 12, 22, 11, 90], then call the function and print the result]"),
+      (["heap", "sort"],
+       "\n\n[IMPORTANT: Add example data - an unsorted array like [64, 34, 25, 12, 22, 11, 90], then call the function and print the result]"),
+      (["fibonacci"],
+       "\n\n[IMPORTANT: Add example - call the function with n = 10 and print the result]"),
+      (["factorial"],
+       "\n\n[IMPORTANT: Add example - call the function with n = 5 and print the result]"),
+      (["bfs", "breadth"],
+       "\n\n[IMPORTANT: Add example graph data and a starting node, then call the function and print the result]"),
+      (["dfs", "depth"],
+       "\n\n[IMPORTANT: Add example graph data and a starting node, then call the function and print the result]"),
+    ]
+    
+    for (keywords, instruction) in algorithmPatterns {
+      let allMatch = keywords.allSatisfy { keyword in
+        lowercased.contains(keyword)
+      }
+      if allMatch {
+        return input + instruction
+      }
+    }
+    
+    return input
   }
   
   private func translateInChunks(_ input: String, maxLength: Int) async throws -> String {
@@ -165,7 +235,8 @@ actor TranslationSessionManager {
     var translations: [String] = []
     for (index, chunk) in finalChunks.enumerated() {
       print("Translating chunk \(index + 1)/\(finalChunks.count)...")
-      let result = try await session.respond(to: chunk)
+      let prompt = buildPrompt(for: chunk)
+      let result = try await session!.respond(to: prompt)
       let content = result.content.trimmingCharacters(in: .whitespacesAndNewlines)
       
       if content != "NOT_CODE" {

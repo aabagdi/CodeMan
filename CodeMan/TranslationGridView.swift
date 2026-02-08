@@ -11,8 +11,12 @@ import SQLiteData
 struct TranslationGridView: View {
   @State private var inDeletionMode = false
   @State private var selectedTranslation: Translation?
+  @State private var showCamera = false
+  @State private var cameraID = UUID()
   
   @FetchAll(animation: .default) var translations: [Translation]
+  
+  @Dependency(\.defaultDatabase) var database
     
   private let columns = 3
   private let spacing: CGFloat = 12
@@ -27,6 +31,19 @@ struct TranslationGridView: View {
             ForEach(translations) { item in
               TranslationGridItemView(translation: item, size: max(itemSize, 0))
                 .jiggle(inDeletionMode)
+                .overlay(alignment: .topTrailing) {
+                  DeleteButtonView(isPresented: $inDeletionMode) {
+                    withErrorReporting {
+                      try database.write { db in
+                        try Translation.find(item.id)
+                          .delete()
+                          .execute(db)
+                      }
+                    }
+                  }
+                  .jiggle(inDeletionMode)
+                  .offset(x: 8, y: -8)
+                }
                 .onTapGesture {
                   if inDeletionMode {
                     inDeletionMode = false
@@ -44,9 +61,21 @@ struct TranslationGridView: View {
         .navigationDestination(item: $selectedTranslation) { translation in
           TranslationDetailView(translation: translation)
         }
+        .navigationDestination(isPresented: $showCamera) {
+          CameraView()
+            .id(cameraID)
+        }
+        .onChange(of: showCamera) { oldValue, newValue in
+          if newValue {
+            cameraID = UUID()
+          }
+        }
+        .navigationTitle("Captured algorithms")
         .toolbar {
           ToolbarItem(placement: .topBarLeading) {
-            NavigationLink(destination: CameraView()) {
+            Button {
+              showCamera = true
+            } label: {
               Image(systemName: "plus")
             }
             .disabled(inDeletionMode)

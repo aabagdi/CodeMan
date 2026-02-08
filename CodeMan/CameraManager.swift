@@ -77,9 +77,17 @@ actor CameraManager: NSObject {
   private let photoStreamContinuation: AsyncStream<AVCapturePhoto>.Continuation
   nonisolated let photoStream: AsyncStream<AVCapturePhoto>
   
-  var isPreviewPaused = false
+  private nonisolated(unsafe) var _isPreviewPaused = false
+  
+  var isPreviewPaused: Bool {
+    get { _isPreviewPaused }
+    set { _isPreviewPaused = newValue }
+  }
   private let previewStreamContinuation: AsyncStream<CIImage>.Continuation
   nonisolated let previewStream: AsyncStream<CIImage>
+  
+  nonisolated(unsafe) var onPreviewFrame: ((CIImage) -> Void)?
+  nonisolated(unsafe) var onPhotoCaptured: ((AVCapturePhoto) -> Void)?
   
   override init() {
     var photoContinuation: AsyncStream<AVCapturePhoto>.Continuation!
@@ -279,6 +287,7 @@ actor CameraManager: NSObject {
       if videoOutputConnection.isVideoMirroringSupported {
         videoOutputConnection.isVideoMirrored = false
       }
+      videoOutputConnection.videoRotationAngle = RotationAngle.portrait.rawValue
     }
   }
 }
@@ -292,14 +301,17 @@ extension CameraManager: @preconcurrency AVCapturePhotoCaptureDelegate {
     }
     
     photoStreamContinuation.yield(photo)
+    onPhotoCaptured?(photo)
   }
 }
 
 extension CameraManager: @preconcurrency AVCaptureVideoDataOutputSampleBufferDelegate {
   nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
     guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
-    connection.videoRotationAngle = RotationAngle.portrait.rawValue
-    previewStreamContinuation.yield(CIImage(cvPixelBuffer: pixelBuffer))
+    guard !_isPreviewPaused else { return }
+    let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+    previewStreamContinuation.yield(ciImage)
+    onPreviewFrame?(ciImage)
   }
 }
 

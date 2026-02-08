@@ -12,29 +12,28 @@ struct TranslationDetailView: View {
   let translation: Translation
   
   var body: some View {
-    NavigationStack {
-      ScrollView {
-        VStack(spacing: 16) {
-          if let uiImage = UIImage(data: translation.image ?? Data()) {
-            ImageHeaderView(image: Image(uiImage: uiImage))
-          }
-          
-          CodeBlockView(
-            title: "Original:",
-            code: translation.originalText,
-            backgroundColor: .secondary
-          )
-          
-          Divider()
-            .padding()
-          
-          CodeBlockView(
-            title: "Python:",
-            code: translation.prettifiedCode ?? AttributedString(),
-            backgroundColor: .green
-          )
+    ScrollView {
+      VStack(spacing: 16) {
+        if let uiImage = UIImage(data: translation.image ?? Data()) {
+          ImageHeaderView(image: Image(uiImage: uiImage))
         }
+        
+        CodeBlockView(
+          title: "Original:",
+          code: translation.originalText,
+          backgroundColor: .secondary
+        )
+        
+        Divider()
+          .padding()
+        
+        CodeBlockView(
+          title: "Python:",
+          code: translation.prettifiedCode ?? AttributedString(),
+          backgroundColor: .green
+        )
       }
     }
+    .navigationTitle(translation.title)
   }
 }

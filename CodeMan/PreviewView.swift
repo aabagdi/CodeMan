@@ -12,6 +12,7 @@ struct PreviewView: View {
   private let footerHeight: CGFloat = 110.0
   @State private var focusLocation: CGPoint?
   @State private var showFocusIndicator = false
+  @State private var isCapturing = false
   
   var body: some View {
     GeometryReader { geometry in
@@ -60,6 +61,8 @@ struct PreviewView: View {
       Spacer()
       
       Button {
+        guard !isCapturing else { return }
+        isCapturing = true
         Task {
           try await model.camera.takePhoto()
         }
@@ -69,11 +72,12 @@ struct PreviewView: View {
             .strokeBorder(.white, lineWidth: 3)
             .frame(width: 72, height: 72)
           Circle()
-            .fill(.white)
+            .fill(isCapturing ? .gray : .white)
             .frame(width: 62, height: 62)
         }
       }
       .buttonStyle(.plain)
+      .disabled(isCapturing)
       
       Spacer()
     }

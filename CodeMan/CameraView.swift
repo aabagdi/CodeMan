@@ -22,29 +22,20 @@ struct CameraView: View {
       } else {
         PreviewView()
           .transition(.opacity)
-          .onAppear {
-            Task {
-              await model.resumePreview()
-            }
-          }
-          .onDisappear {
-            Task {
-              await model.pausePreview()
-            }
-          }
       }
-      
     }
     .animation(.easeInOut(duration: 0.2), value: model.photoTaken != nil)
+    .onAppear {
+      AppDelegate.orientationLock = .portrait
+      
+      if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+         let rootViewController = windowScene.windows.first?.rootViewController {
+        rootViewController.setNeedsUpdateOfSupportedInterfaceOrientations()
+      }
+    }
     .task {
+      try? await Task.sleep(for: .milliseconds(100))
       do {
-        AppDelegate.orientationLock = .portrait
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = windowScene.windows.first?.rootViewController {
-          rootViewController.setNeedsUpdateOfSupportedInterfaceOrientations()
-        }
-        
         try await model.camera.start()
       } catch {
         showCameraError = true
@@ -62,6 +53,15 @@ struct CameraView: View {
     }
     .onDisappear {
       AppDelegate.orientationLock = .all
+    }
+    .onChange(of: model.photoTaken != nil) { oldValue, newValue in
+      Task {
+        if newValue {
+          await model.pausePreview()
+        } else {
+          await model.resumePreview()
+        }
+      }
     }
     .ignoresSafeArea(.all)
     .environment(model)
