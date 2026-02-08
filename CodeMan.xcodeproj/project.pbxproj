@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		39D4CF8C2F37F4570075B419 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = 39D4CF8B2F37F4570075B419 /* SQLiteData */; };
 		39E453752F36897A00AA1160 /* Highlighter in Frameworks */ = {isa = PBXBuildFile; productRef = 39E453742F36897A00AA1160 /* Highlighter */; };
 /* End PBXBuildFile section */
 
@@ -27,6 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				39D4CF8C2F37F4570075B419 /* SQLiteData in Frameworks */,
 				39E453752F36897A00AA1160 /* Highlighter in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -71,6 +73,7 @@
 			name = CodeMan;
 			packageProductDependencies = (
 				39E453742F36897A00AA1160 /* Highlighter */,
+				39D4CF8B2F37F4570075B419 /* SQLiteData */,
 			);
 			productName = CodeMan;
 			productReference = 39AB77382F3095BF007B2638 /* CodeMan.app */;
@@ -84,7 +87,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2620;
-				LastUpgradeCheck = 2620;
+				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					39AB77372F3095BF007B2638 = {
 						CreatedOnToolsVersion = 26.2;
@@ -102,6 +105,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				39E453732F36897A00AA1160 /* XCRemoteSwiftPackageReference "HighlighterSwift" */,
+				39D4CF8A2F37F4570075B419 /* XCRemoteSwiftPackageReference "sqlite-data" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 39AB77392F3095BF007B2638 /* Products */;
@@ -193,6 +197,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -250,6 +255,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -349,6 +355,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		39D4CF8A2F37F4570075B419 /* XCRemoteSwiftPackageReference "sqlite-data" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/sqlite-data";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.1;
+			};
+		};
 		39E453732F36897A00AA1160 /* XCRemoteSwiftPackageReference "HighlighterSwift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/smittytone/HighlighterSwift";
@@ -360,6 +374,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		39D4CF8B2F37F4570075B419 /* SQLiteData */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 39D4CF8A2F37F4570075B419 /* XCRemoteSwiftPackageReference "sqlite-data" */;
+			productName = SQLiteData;
+		};
 		39E453742F36897A00AA1160 /* Highlighter */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 39E453732F36897A00AA1160 /* XCRemoteSwiftPackageReference "HighlighterSwift" */;
