@@ -20,7 +20,7 @@ final class RecognitionViewModel {
   @Dependency(\.uuid) var uuid
   
   private var recognizer = CodeRecognizer()
-  private var translator = PythonTranslator()
+  private let translator = TranslationSessionManager()
   private let highlighter = Highlighter()
   
   var codeTitle: String = ""

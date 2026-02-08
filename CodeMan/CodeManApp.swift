@@ -21,7 +21,7 @@ struct CodeManApp: App {
   
   var body: some Scene {
     WindowGroup {
-      CameraView()
+      TranslationGridView()
     }
   }
 }

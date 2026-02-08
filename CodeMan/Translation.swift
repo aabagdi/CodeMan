@@ -11,7 +11,7 @@ import SQLiteData
 import OSLog
 
 @Table
-struct Translation: Identifiable {
+struct Translation: Identifiable, Hashable {
   let id: UUID
   var title: String
   let image: Data?

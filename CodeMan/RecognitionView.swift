@@ -17,26 +17,10 @@ struct RecognitionView: View {
       ScrollView {
         VStack(spacing: 16) {
           if let image {
-            VStack(spacing: 8) {
-              image.image
-                .resizable()
-                .scaledToFit()
-                .frame(maxHeight: 300)
-                .cornerRadius(12)
-                .overlay(
-                  RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.blue.opacity(0.3), lineWidth: 2)
-                )
-              
-              HStack {
-                Image(systemName: "photo")
-                  .foregroundStyle(.secondary)
-                Text("Image: \(image.imageSize.width) × \(image.imageSize.height) pixels")
-                  .font(.caption)
-                  .foregroundStyle(.secondary)
-              }
-            }
-            .padding()
+            ImageHeaderView(
+              image: image.image,
+              caption: "Image: \(image.imageSize.width) × \(image.imageSize.height) pixels"
+            )
           }
           
           if viewModel.observations.isEmpty && !viewModel.isDoneRecognizing {
@@ -52,54 +36,32 @@ struct RecognitionView: View {
               .padding()
           } else {
             if viewModel.hasCodeToTranslate {
-              VStack(alignment: .leading, spacing: 8) {
-                Text("Original:")
-                  .font(.headline)
-                  .padding(.horizontal)
-                
-                ScrollView(.horizontal, showsIndicators: true) {
-                  Text(viewModel.fullCodeBlock)
-                    .font(.system(.body, design: .monospaced))
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
-                }
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(8)
-                .padding(.horizontal)
-              }
+              CodeBlockView(
+                title: "Original:",
+                code: viewModel.fullCodeBlock,
+                backgroundColor: .secondary
+              )
               
               Divider()
                 .padding()
               
-              VStack(alignment: .leading, spacing: 8) {
-                Text("Python:")
-                  .font(.headline)
-                  .padding(.horizontal)
-                
-                if viewModel.isTranslating {
-                  HStack {
-                    ProgressView()
-                    Text("Translating entire code block...")
-                      .foregroundStyle(.secondary)
-                  }
-                  .padding()
-                } else if viewModel.hasTranslatedCode {
-                  ScrollView(.horizontal, showsIndicators: true) {
-                    Text(viewModel.prettifiedCode)
-                      .font(.system(.body, design: .monospaced))
-                      .padding()
-                      .frame(maxWidth: .infinity, alignment: .leading)
-                      .textSelection(.enabled)
-                  }
-                  .background(Color.green.opacity(0.1))
-                  .cornerRadius(8)
-                  .padding(.horizontal)
-                } else {
-                  Text("No code was recognized")
+              if viewModel.isTranslating {
+                HStack {
+                  ProgressView()
+                  Text("Translating entire code block...")
                     .foregroundStyle(.secondary)
-                    .padding()
                 }
+                .padding()
+              } else if viewModel.hasTranslatedCode {
+                CodeBlockView(
+                  title: "Python:",
+                  code: viewModel.prettifiedCode,
+                  backgroundColor: .green
+                )
+              } else {
+                Text("No code was recognized")
+                  .foregroundStyle(.secondary)
+                  .padding()
               }
             } else if viewModel.isTranslating {
               HStack {

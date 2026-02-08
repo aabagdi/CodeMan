@@ -1,5 +1,5 @@
 //
-//  PythonTranslater.swift
+//  TranslationSessionManager.swift
 //  CodeMan
 //
 //  Created by Aadit Bagdi on 2/2/26.
@@ -7,19 +7,6 @@
 
 import Foundation
 import FoundationModels
-
-@Observable
-class PythonTranslator {
-  private let sessionManager: TranslationSessionManager
-  
-  init() {
-    self.sessionManager = TranslationSessionManager()
-  }
-  
-  func translate(_ input: String) async throws -> String {
-    try await sessionManager.translate(input)
-  }
-}
 
 actor TranslationSessionManager {
   let session: LanguageModelSession
