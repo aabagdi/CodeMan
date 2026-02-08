@@ -46,8 +46,7 @@ struct ImageCropperView: View {
   }
   
   var body: some View {
-    NavigationStack {
-      GeometryReader { geometry in
+    GeometryReader { geometry in
         ZStack {
           Color.clear
             .onAppear {
@@ -143,16 +142,15 @@ struct ImageCropperView: View {
             }
         )
       }
-      .navigationTitle("Select Code Area")
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
+      .safeAreaInset(edge: .bottom) {
+        HStack {
           Button("Cancel") {
             onCancel()
           }
-        }
-        
-        ToolbarItem(placement: .principal) {
+          .foregroundStyle(.white)
+          
+          Spacer()
+          
           Button {
             withAnimation(.easeInOut(duration: 0.2)) {
               rotationAngle = (rotationAngle + 90) % 360
@@ -160,20 +158,24 @@ struct ImageCropperView: View {
             }
           } label: {
             Label("Rotate", systemImage: "rotate.right")
+              .foregroundStyle(.white)
           }
-        }
-        
-        ToolbarItem(placement: .confirmationAction) {
+          
+          Spacer()
+          
           Button("Crop") {
             cropImage()
           }
           .disabled(selectionRect == .zero || selectionRect.width < 10 || selectionRect.height < 10)
+          .foregroundStyle(.white)
         }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 16)
+        .background(Color.black.opacity(0.6))
       }
       .onAppear {
         rotationAngle = initialRotation
       }
-    }
   }
   
   private func handlePosition(for corner: Int) -> CGPoint {

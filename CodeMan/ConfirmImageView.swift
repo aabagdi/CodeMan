@@ -9,11 +9,11 @@ import SwiftUI
 import UIKit
 
 struct ConfirmImageView: View {
+  @Binding var navigationPath: NavigationPath
+  
   @Environment(CameraModel.self) var model
   
   @State private var isCropMode = false
-  @State private var imageForRecognition: PhotoData?
-  @State private var navigateToRecognition = false
   @State private var rotationAngle: Int = 0
   
   private let headerHeight: CGFloat = 90.0
@@ -55,19 +55,6 @@ struct ConfirmImageView: View {
           }
         }
         .background(Color.black)
-        .navigationDestination(isPresented: $navigateToRecognition) {
-          RecognitionView(image: imageForRecognition)
-        }
-        .onChange(of: navigateToRecognition) { oldValue, newValue in
-          if oldValue == true && newValue == false {
-            Task {
-              await model.resumePreview()
-              await MainActor.run {
-                model.photoTaken = nil
-              }
-            }
-          }
-        }
       }
     }
 
@@ -113,9 +100,9 @@ struct ConfirmImageView: View {
       
       Button {
         if let photo = model.photoTaken {
-          imageForRecognition = applyRotation(to: photo)
+          let imageForRecognition = applyRotation(to: photo)
+          navigationPath.append(CameraNavigation.recognition(imageForRecognition))
         }
-        navigateToRecognition = true
       } label: {
         Text("Use Image")
           .font(.body.bold())

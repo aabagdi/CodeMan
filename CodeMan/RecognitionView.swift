@@ -9,6 +9,7 @@ import SwiftUI
 
 struct RecognitionView: View {
   let image: PhotoData?
+  @Binding var navigationPath: NavigationPath
   
   @State private var viewModel = RecognitionViewModel()
   
@@ -86,11 +87,12 @@ struct RecognitionView: View {
       
       Button("Save") {
         try? viewModel.saveCode(image: image)
+        navigationPath = NavigationPath()
       }
       
       Button("Cancel", role: .cancel) { }
     }
-    .alert("Translation Error: \(viewModel.translationError). Please try taking another photo.",
+    .alert("Translation Error. Please try taking another photo.",
            isPresented: $viewModel.showingTranslationError) {
       Button("OK") {
         viewModel.dismissTranslationError()

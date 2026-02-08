@@ -11,8 +11,8 @@ import SQLiteData
 struct TranslationGridView: View {
   @State private var inDeletionMode = false
   @State private var selectedTranslation: Translation?
-  @State private var showCamera = false
   @State private var cameraID = UUID()
+  @State private var navigationPath = NavigationPath()
   
   @FetchAll(animation: .default) var translations: [Translation]
   
@@ -25,7 +25,7 @@ struct TranslationGridView: View {
     GeometryReader { g in
       let itemSize = (g.size.width - spacing * CGFloat(columns + 1)) / CGFloat(columns)
       
-      NavigationStack {
+      NavigationStack(path: $navigationPath) {
         ScrollView {
           LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: columns), spacing: spacing) {
             ForEach(translations) { item in
@@ -61,20 +61,21 @@ struct TranslationGridView: View {
         .navigationDestination(item: $selectedTranslation) { translation in
           TranslationDetailView(translation: translation)
         }
-        .navigationDestination(isPresented: $showCamera) {
-          CameraView()
-            .id(cameraID)
-        }
-        .onChange(of: showCamera) { oldValue, newValue in
-          if newValue {
-            cameraID = UUID()
+        .navigationDestination(for: CameraNavigation.self) { destination in
+          switch destination {
+          case .camera:
+            CameraView(navigationPath: $navigationPath)
+              .id(cameraID)
+          case .recognition(let photoData):
+            RecognitionView(image: photoData, navigationPath: $navigationPath)
           }
         }
         .navigationTitle("Captured algorithms")
         .toolbar {
           ToolbarItem(placement: .topBarLeading) {
             Button {
-              showCamera = true
+              cameraID = UUID()
+              navigationPath.append(CameraNavigation.camera)
             } label: {
               Image(systemName: "plus")
             }
@@ -84,4 +85,9 @@ struct TranslationGridView: View {
       }
     }
   }
+}
+
+enum CameraNavigation: Hashable {
+  case camera
+  case recognition(PhotoData)
 }

@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct CameraView: View {
+  @Binding var navigationPath: NavigationPath
+  
   @State private var model = CameraModel()
   @State private var showCameraError: Bool = false
   
@@ -17,13 +19,14 @@ struct CameraView: View {
         .ignoresSafeArea(.all)
       
       if let _ = model.photoTaken {
-        ConfirmImageView()
+        ConfirmImageView(navigationPath: $navigationPath)
           .transition(.opacity)
       } else {
         PreviewView()
           .transition(.opacity)
       }
     }
+    .environment(model)
     .animation(.easeInOut(duration: 0.2), value: model.photoTaken != nil)
     .onAppear {
       AppDelegate.orientationLock = .portrait
@@ -64,6 +67,5 @@ struct CameraView: View {
       }
     }
     .ignoresSafeArea(.all)
-    .environment(model)
   }
 }

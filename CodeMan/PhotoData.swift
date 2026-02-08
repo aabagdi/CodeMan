@@ -8,8 +8,16 @@
 import Foundation
 import SwiftUI
 
-struct PhotoData {
+struct PhotoData: Hashable {
   var image: Image
   var imageData: Data
   var imageSize: (width: Int, height: Int)
+  
+  func hash(into hasher: inout Hasher) {
+    hasher.combine(imageData)
+  }
+  
+  static func == (lhs: PhotoData, rhs: PhotoData) -> Bool {
+    lhs.imageData == rhs.imageData
+  }
 }

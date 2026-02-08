@@ -80,6 +80,7 @@ actor TranslationSessionManager {
            - Use f-strings for string formatting: f"Value: {value}"
            - Use .append() for adding single items, .extend() for multiple
            - Use 'is' for None checks: if value is None
+           - Use tuple unpacking for swaps: a, b = b, a (NEVER define a swap function)
            
            Readability:
            - Use 4 spaces for indentation (PEP 8 standard)
