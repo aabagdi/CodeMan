@@ -40,6 +40,12 @@ struct CreditsView: View {
             )
             
             CreditRow(
+              name: "Python Apple Support",
+              author: "BeeWare",
+              icon: "ladybug.fill",
+              color: .yellow)
+            
+            CreditRow(
               name: "SQLiteData",
               author: "Point-Free",
               icon: "cylinder.fill",

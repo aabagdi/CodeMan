@@ -5,6 +5,7 @@
 //  Created by Aadit Bagdi on 2/7/26.
 //
 
+import CloudKit
 import Dependencies
 import Foundation
 import SQLiteData
@@ -27,10 +28,15 @@ extension DependencyValues {
     
     var configuration = Configuration()
     
-#if DEBUG
     configuration.prepareDatabase { db in
+      try db.attachMetadatabase()
+      
+#if DEBUG
       db.trace(options: .profile) {
-        guard !$0.expandedDescription.hasPrefix("--") else { return }
+        guard
+          !SyncEngine.isSynchronizing,
+          !$0.expandedDescription.hasPrefix("--")
+        else { return }
         switch context {
         case .live:
           logger.debug("\($0.expandedDescription)")
@@ -40,8 +46,8 @@ extension DependencyValues {
           break
         }
       }
-    }
 #endif
+    }
     
     let database = try SQLiteData.defaultDatabase(configuration: configuration)
     logger.info("open '\(database.path)'")
@@ -66,7 +72,13 @@ extension DependencyValues {
     }
     
     try migrator.migrate(database)
+    
     defaultDatabase = database
+    
+    defaultSyncEngine = try SyncEngine(
+      for: database,
+      tables: Translation.self
+    )
   }
 }
 
