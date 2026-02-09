@@ -12,7 +12,7 @@ final class PythonRunner {
   
   private var isInitialized = false
   
-  private init() {}
+  private init() { }
   
   func initialize() {
     guard !isInitialized else { return }

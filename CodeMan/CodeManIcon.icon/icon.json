@@ -1,0 +1,60 @@
+{
+  "fill" : {
+    "automatic-gradient" : "display-p3:0.45433,0.79038,0.96783,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "fill" : "automatic",
+          "hidden" : false,
+          "image-name" : "Monitor face.png",
+          "name" : "Monitor face",
+          "position" : {
+            "scale" : 0.75,
+            "translation-in-points" : [
+              0.5,
+              15.5
+            ]
+          }
+        },
+        {
+          "glass" : false,
+          "image-name" : "Monitor front.png",
+          "name" : "Monitor front",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -3,
+              9.5
+            ]
+          }
+        },
+        {
+          "image-name" : "Monitor back.png",
+          "name" : "Monitor back",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              12
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "iOS"
+    ]
+  }
+}

@@ -9,35 +9,6 @@ import Foundation
 @preconcurrency import AVFoundation
 import UIKit
 
-enum CameraError: LocalizedError {
-  case notAuthorized
-  case deviceNotAvailable
-  case deviceInputFailed
-  case cannotAddInput
-  case cannotAddOutput
-  case sessionNotConfigured
-  case captureDeviceNotFound
-  
-  var errorDescription: String? {
-    switch self {
-    case .notAuthorized:
-      return "Camera access not authorized"
-    case .deviceNotAvailable:
-      return "Camera device is not available"
-    case .deviceInputFailed:
-      return "Failed to create device input"
-    case .cannotAddInput:
-      return "Unable to add device input to capture session"
-    case .cannotAddOutput:
-      return "Unable to add output to capture session"
-    case .sessionNotConfigured:
-      return "Camera session is not configured"
-    case .captureDeviceNotFound:
-      return "No capture device found"
-    }
-  }
-}
-
 actor CameraManager: NSObject {
   private let session = AVCaptureSession()
   
@@ -312,5 +283,34 @@ extension CameraManager: @preconcurrency AVCaptureVideoDataOutputSampleBufferDel
     let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
     previewStreamContinuation.yield(ciImage)
     onPreviewFrame?(ciImage)
+  }
+}
+
+enum CameraError: LocalizedError {
+  case notAuthorized
+  case deviceNotAvailable
+  case deviceInputFailed
+  case cannotAddInput
+  case cannotAddOutput
+  case sessionNotConfigured
+  case captureDeviceNotFound
+  
+  var errorDescription: String? {
+    switch self {
+    case .notAuthorized:
+      return "Camera access not authorized"
+    case .deviceNotAvailable:
+      return "Camera device is not available"
+    case .deviceInputFailed:
+      return "Failed to create device input"
+    case .cannotAddInput:
+      return "Unable to add device input to capture session"
+    case .cannotAddOutput:
+      return "Unable to add output to capture session"
+    case .sessionNotConfigured:
+      return "Camera session is not configured"
+    case .captureDeviceNotFound:
+      return "No capture device found"
+    }
   }
 }

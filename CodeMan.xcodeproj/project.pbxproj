@@ -11,8 +11,8 @@
 		39016CEC2F396C1F00F5E669 /* Python.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 39016CE62F396A5B00F5E669 /* Python.xcframework */; };
 		39016CED2F396C1F00F5E669 /* Python.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 39016CE62F396A5B00F5E669 /* Python.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		390195ED2F39721A00F5E669 /* lib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 390195EC2F39721A00F5E669 /* lib */; };
+		397EF1992F3A057C007A5C8E /* Highlighter in Frameworks */ = {isa = PBXBuildFile; productRef = 397EF1982F3A057C007A5C8E /* Highlighter */; };
 		39D4CF8C2F37F4570075B419 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = 39D4CF8B2F37F4570075B419 /* SQLiteData */; };
-		39E453752F36897A00AA1160 /* Highlighter in Frameworks */ = {isa = PBXBuildFile; productRef = 39E453742F36897A00AA1160 /* Highlighter */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -59,8 +59,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				39D4CF8C2F37F4570075B419 /* SQLiteData in Frameworks */,
+				397EF1992F3A057C007A5C8E /* Highlighter in Frameworks */,
 				39016CEC2F396C1F00F5E669 /* Python.xcframework in Frameworks */,
-				39E453752F36897A00AA1160 /* Highlighter in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -107,8 +107,8 @@
 			);
 			name = CodeMan;
 			packageProductDependencies = (
-				39E453742F36897A00AA1160 /* Highlighter */,
 				39D4CF8B2F37F4570075B419 /* SQLiteData */,
+				397EF1982F3A057C007A5C8E /* Highlighter */,
 			);
 			productName = CodeMan;
 			productReference = 39AB77382F3095BF007B2638 /* CodeMan.app */;
@@ -139,8 +139,8 @@
 			mainGroup = 39AB772F2F3095BF007B2638;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				39E453732F36897A00AA1160 /* XCRemoteSwiftPackageReference "HighlighterSwift" */,
 				39D4CF8A2F37F4570075B419 /* XCRemoteSwiftPackageReference "sqlite-data" */,
+				397EF1972F3A057C007A5C8E /* XCRemoteSwiftPackageReference "HighlighterSwift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 39AB77392F3095BF007B2638 /* Products */;
@@ -300,7 +300,7 @@
 		39AB77442F3095C1007B2638 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = CodeManIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -337,7 +337,7 @@
 		39AB77452F3095C1007B2638 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = CodeManIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -395,6 +395,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		397EF1972F3A057C007A5C8E /* XCRemoteSwiftPackageReference "HighlighterSwift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/smittytone/HighlighterSwift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.0;
+			};
+		};
 		39D4CF8A2F37F4570075B419 /* XCRemoteSwiftPackageReference "sqlite-data" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/pointfreeco/sqlite-data";
@@ -403,26 +411,18 @@
 				minimumVersion = 1.5.1;
 			};
 		};
-		39E453732F36897A00AA1160 /* XCRemoteSwiftPackageReference "HighlighterSwift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/smittytone/HighlighterSwift";
-			requirement = {
-				kind = revision;
-				revision = 8b310b2b299004d3acb2135f8f4b24ab40bd56d0;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		397EF1982F3A057C007A5C8E /* Highlighter */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 397EF1972F3A057C007A5C8E /* XCRemoteSwiftPackageReference "HighlighterSwift" */;
+			productName = Highlighter;
+		};
 		39D4CF8B2F37F4570075B419 /* SQLiteData */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 39D4CF8A2F37F4570075B419 /* XCRemoteSwiftPackageReference "sqlite-data" */;
 			productName = SQLiteData;
-		};
-		39E453742F36897A00AA1160 /* Highlighter */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 39E453732F36897A00AA1160 /* XCRemoteSwiftPackageReference "HighlighterSwift" */;
-			productName = Highlighter;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

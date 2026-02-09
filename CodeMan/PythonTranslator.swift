@@ -37,6 +37,21 @@ actor TranslationSessionManager {
            best practices (PEP 8) while maintaining readability. In your response,
            only give the code, and no other text.
            
+           CRITICAL LIBRARY RESTRICTION:
+           You may ONLY use Python's standard library. Do NOT use any third-party 
+           packages such as numpy, pandas, scipy, requests, matplotlib, pillow, 
+           opencv, tensorflow, pytorch, sklearn, or any other pip-installable package.
+           
+           If the original code uses a third-party library, translate it using only
+           standard library equivalents:
+           - Instead of numpy arrays, use Python lists with list comprehensions
+           - Instead of pandas DataFrames, use lists of dictionaries or csv module
+           - Instead of requests, use urllib.request
+           - For math operations, use the math module
+           - For random numbers, use the random module
+           - For JSON, use the json module
+           - For file operations, use built-in open() or pathlib
+           
            CRITICAL RULES:
            1. Translate the provided code to idiomatic Python - preserve the FUNCTIONALITY, not necessarily the structure
            2. Do NOT add features or logic that aren't present in the original
