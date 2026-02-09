@@ -92,6 +92,14 @@ struct TranslationGridView: View {
             Image(systemName: "plus")
           }
           .disabled(inDeletionMode)
+          
+        }
+        
+        ToolbarItem(placement: .topBarTrailing) {
+          NavigationLink(destination: CreditsView()) {
+            Text("Credits")
+          }
+          .disabled(inDeletionMode)
         }
       }
     }
