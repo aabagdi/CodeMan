@@ -21,26 +21,30 @@ struct ImageCropperView: View {
   @State private var isResizing = false
   @State private var resizingCorner: Int?
   @State private var rotationAngle: Int = 0
+  @State private var cachedRotatedImage: UIImage?
+  @State private var cachedRotationAngle: Int = -1
 
-  private var rotatedUIImage: UIImage? {
-    guard let uiImage = UIImage(data: image.imageData) else { return nil }
+  private func updateRotatedImageIfNeeded() {
+    guard cachedRotationAngle != rotationAngle else { return }
+    guard let uiImage = UIImage(data: image.imageData) else { return }
     let normalized = uiImage.normalizedImage()
     
     switch rotationAngle {
     case 90:
-      return normalized.rotatedClockwise()
+      cachedRotatedImage = normalized.rotatedClockwise()
     case 180:
-      return normalized.rotatedClockwise().rotatedClockwise()
+      cachedRotatedImage = normalized.rotatedClockwise().rotatedClockwise()
     case 270:
-      return normalized.rotatedCounterClockwise()
+      cachedRotatedImage = normalized.rotatedCounterClockwise()
     default:
-      return normalized
+      cachedRotatedImage = normalized
     }
+    cachedRotationAngle = rotationAngle
   }
   
   private var displayImage: Image {
-    if let rotated = rotatedUIImage {
-      return Image(uiImage: rotated)
+    if let cached = cachedRotatedImage {
+      return Image(uiImage: cached)
     }
     return image.image
   }
@@ -61,25 +65,7 @@ struct ImageCropperView: View {
             .scaledToFit()
           
           if selectionRect != .zero {
-            Rectangle()
-              .fill(Color.black.opacity(0.5))
-              .mask {
-                Rectangle()
-                  .overlay {
-                    Rectangle()
-                      .frame(width: selectionRect.width, height: selectionRect.height)
-                      .position(x: selectionRect.midX, y: selectionRect.midY)
-                      .blendMode(.destinationOut)
-                  }
-              }
-              .allowsHitTesting(false)
-          }
-          
-          if selectionRect != .zero {
-            Rectangle()
-              .stroke(Color.blue, lineWidth: 2)
-              .frame(width: selectionRect.width, height: selectionRect.height)
-              .position(x: selectionRect.midX, y: selectionRect.midY)
+            SelectionOverlay(selectionRect: selectionRect, containerSize: geometry.size)
               .allowsHitTesting(false)
             
             ForEach(0..<4, id: \.self) { corner in
@@ -175,6 +161,10 @@ struct ImageCropperView: View {
       }
       .onAppear {
         rotationAngle = initialRotation
+        updateRotatedImageIfNeeded()
+      }
+      .onChange(of: rotationAngle) { _, _ in
+        updateRotatedImageIfNeeded()
       }
   }
   
@@ -241,7 +231,7 @@ struct ImageCropperView: View {
   }
   
   private func cropImage() {
-    guard let normalizedImage = rotatedUIImage else {
+    guard let normalizedImage = cachedRotatedImage else {
       print("Failed to create rotated UIImage from data")
       return
     }
@@ -334,6 +324,7 @@ struct ImageCropperView: View {
     onCropComplete(croppedPhoto)
   }
 }
+
 struct ResizeHandle: View {
   let position: CGPoint
   let corner: Int
@@ -366,5 +357,32 @@ struct ResizeHandle: View {
             onEnd()
           }
       )
+  }
+}
+
+struct SelectionOverlay: View {
+  let selectionRect: CGRect
+  let containerSize: CGSize
+  
+  var body: some View {
+    Canvas { context, size in
+      context.fill(
+        Path(CGRect(origin: .zero, size: size)),
+        with: .color(.black.opacity(0.5))
+      )
+      
+      context.blendMode = .destinationOut
+      context.fill(
+        Path(selectionRect),
+        with: .color(.white)
+      )
+      
+      context.blendMode = .normal
+      context.stroke(
+        Path(selectionRect),
+        with: .color(.blue),
+        lineWidth: 2
+      )
+    }
   }
 }

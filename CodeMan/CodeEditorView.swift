@@ -9,13 +9,17 @@ import SwiftUI
 import SQLiteData
 import Highlighter
 import UIKit
+import Dependencies
 
 struct CodeEditorView: View {
   @Binding var translation: Translation
   
+  @Dependency(\.defaultDatabase) var database
+  
   @State private var text: AttributedString = ""
   @State private var selection = AttributedTextSelection()
   @State private var highlightTask: Task<Void, Never>?
+  @State private var saveTask: Task<Void, Never>?
   
   let highlighter = Highlighter()
   
@@ -23,8 +27,6 @@ struct CodeEditorView: View {
     TextEditor(text: $text, selection: $selection)
       .fontDesign(.monospaced)
       .padding()
-      .navigationTitle("Editing \(translation.title)")
-      .navigationBarTitleDisplayMode(.inline)
       .onAppear {
         text = highlight(translation.translatedCode ?? "")
       }
@@ -35,6 +37,7 @@ struct CodeEditorView: View {
           translation.translatedCode = newPlainText
           
           highlightTask?.cancel()
+          saveTask?.cancel()
           
           highlightTask = Task {
             try? await Task.sleep(for: .milliseconds(300))
@@ -63,8 +66,37 @@ struct CodeEditorView: View {
               selection = AttributedTextSelection(insertionPoint: newIndex)
             }
           }
+          
+          saveTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            
+            let highlightedCode = highlight(newPlainText)
+            translation.prettifiedCode = highlightedCode
+            await saveToDatabase()
+          }
         }
       }
+  }
+  
+  func saveToDatabase() async {
+    let id = translation.id
+    let translatedCode = translation.translatedCode
+    let prettifiedCode = translation.prettifiedCode
+    
+    do {
+      try await database.write { db in
+        try Translation
+          .find(id)
+          .update {
+            $0.translatedCode = translatedCode
+            $0.prettifiedCode = prettifiedCode
+          }
+          .execute(db)
+      }
+    } catch {
+      print("Failed to save translation: \(error)")
+    }
   }
   
   func highlight(_ code: String) -> AttributedString {

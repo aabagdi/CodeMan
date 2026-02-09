@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		39016CE52F396A3600F5E669 /* PythonKit in Frameworks */ = {isa = PBXBuildFile; productRef = 39016CE42F396A3600F5E669 /* PythonKit */; };
-		39016CEA2F396A9B00F5E669 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 39016CE92F396A9B00F5E669 /* SystemConfiguration.framework */; };
 		39016CEB2F396B0900F5E669 /* Python.xcframework in Resources */ = {isa = PBXBuildFile; fileRef = 39016CE62F396A5B00F5E669 /* Python.xcframework */; };
 		39016CEC2F396C1F00F5E669 /* Python.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 39016CE62F396A5B00F5E669 /* Python.xcframework */; };
 		39016CED2F396C1F00F5E669 /* Python.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 39016CE62F396A5B00F5E669 /* Python.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -43,7 +41,6 @@
 
 /* Begin PBXFileReference section */
 		39016CE62F396A5B00F5E669 /* Python.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = Python.xcframework; sourceTree = "<group>"; };
-		39016CE92F396A9B00F5E669 /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
 		390195EC2F39721A00F5E669 /* lib */ = {isa = PBXFileReference; lastKnownFileType = folder; name = lib; path = Python.xcframework/lib; sourceTree = "<group>"; };
 		39AB77382F3095BF007B2638 /* CodeMan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CodeMan.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -62,31 +59,20 @@
 			buildActionMask = 2147483647;
 			files = (
 				39D4CF8C2F37F4570075B419 /* SQLiteData in Frameworks */,
-				39016CEA2F396A9B00F5E669 /* SystemConfiguration.framework in Frameworks */,
 				39016CEC2F396C1F00F5E669 /* Python.xcframework in Frameworks */,
 				39E453752F36897A00AA1160 /* Highlighter in Frameworks */,
-				39016CE52F396A3600F5E669 /* PythonKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		39016CE82F396A9B00F5E669 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				39016CE92F396A9B00F5E669 /* SystemConfiguration.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 		39AB772F2F3095BF007B2638 = {
 			isa = PBXGroup;
 			children = (
 				390195EC2F39721A00F5E669 /* lib */,
 				39016CE62F396A5B00F5E669 /* Python.xcframework */,
 				39AB773A2F3095BF007B2638 /* CodeMan */,
-				39016CE82F396A9B00F5E669 /* Frameworks */,
 				39AB77392F3095BF007B2638 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -123,7 +109,6 @@
 			packageProductDependencies = (
 				39E453742F36897A00AA1160 /* Highlighter */,
 				39D4CF8B2F37F4570075B419 /* SQLiteData */,
-				39016CE42F396A3600F5E669 /* PythonKit */,
 			);
 			productName = CodeMan;
 			productReference = 39AB77382F3095BF007B2638 /* CodeMan.app */;
@@ -156,7 +141,6 @@
 			packageReferences = (
 				39E453732F36897A00AA1160 /* XCRemoteSwiftPackageReference "HighlighterSwift" */,
 				39D4CF8A2F37F4570075B419 /* XCRemoteSwiftPackageReference "sqlite-data" */,
-				39016CE32F396A3600F5E669 /* XCRemoteSwiftPackageReference "PythonKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 39AB77392F3095BF007B2638 /* Products */;
@@ -323,6 +307,7 @@
 				DEVELOPMENT_TEAM = 3798C43WZH;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = CodeMan;
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app requires camera to translate code in a picture to Python.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -341,6 +326,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "CodeMan/CodeMan-Bridging-Header.h";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
@@ -358,6 +344,7 @@
 				DEVELOPMENT_TEAM = 3798C43WZH;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = CodeMan;
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app requires camera to translate code in a picture to Python.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -376,6 +363,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "CodeMan/CodeMan-Bridging-Header.h";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
@@ -407,14 +395,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		39016CE32F396A3600F5E669 /* XCRemoteSwiftPackageReference "PythonKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/pvieito/PythonKit";
-			requirement = {
-				branch = master;
-				kind = branch;
-			};
-		};
 		39D4CF8A2F37F4570075B419 /* XCRemoteSwiftPackageReference "sqlite-data" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/pointfreeco/sqlite-data";
@@ -434,11 +414,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		39016CE42F396A3600F5E669 /* PythonKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 39016CE32F396A3600F5E669 /* XCRemoteSwiftPackageReference "PythonKit" */;
-			productName = PythonKit;
-		};
 		39D4CF8B2F37F4570075B419 /* SQLiteData */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 39D4CF8A2F37F4570075B419 /* XCRemoteSwiftPackageReference "sqlite-data" */;

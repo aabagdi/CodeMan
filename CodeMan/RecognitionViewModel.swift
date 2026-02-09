@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 import Vision
 import Highlighter
 import SQLiteData
@@ -83,15 +84,10 @@ final class RecognitionViewModel {
         
         guard let highlighter else { return }
         
-        var lineNumberingData = LineNumberData()
-        lineNumberingData.minWidth = 1
-        lineNumberingData.numberStart = 1
-        lineNumberingData.fontSize = 16
-        
         highlighter.setTheme("atom-one-light")
         
-        if let highlightedCode = highlighter.highlight(cleanedCode, as: "python", lineNumbering: lineNumberingData) {
-          prettifiedCode = AttributedString(highlightedCode)
+        if let highlightedNS = highlighter.highlight(cleanedCode, as: "python") {
+          prettifiedCode = extractColorsOnly(from: highlightedNS, plainText: cleanedCode)
           print("Translation complete:\n\(cleanedCode)")
         }
       }
@@ -137,5 +133,29 @@ final class RecognitionViewModel {
     result = result.replacingOccurrences(of: #"\n?```$"#, with: "", options: .regularExpression)
     
     return result.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+  
+  private func extractColorsOnly(from highlightedNS: NSAttributedString, plainText: String) -> AttributedString {
+    var result = AttributedString(plainText)
+    
+    highlightedNS.enumerateAttributes(
+      in: NSRange(location: 0, length: highlightedNS.length),
+      options: []
+    ) { attrs, nsRange, _ in
+      guard let stringRange = Range(nsRange, in: plainText) else { return }
+      
+      let startOffset = plainText.distance(from: plainText.startIndex, to: stringRange.lowerBound)
+      let endOffset = plainText.distance(from: plainText.startIndex, to: stringRange.upperBound)
+      
+      let attrStart = result.characters.index(result.startIndex, offsetBy: startOffset)
+      let attrEnd = result.characters.index(result.startIndex, offsetBy: endOffset)
+      let attrRange = attrStart..<attrEnd
+      
+      if let uiColor = attrs[.foregroundColor] as? UIColor {
+        result[attrRange].foregroundColor = Color(uiColor: uiColor)
+      }
+    }
+    
+    return result
   }
 }

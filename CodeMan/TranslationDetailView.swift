@@ -38,7 +38,7 @@ struct TranslationDetailView: View {
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
-        NavigationLink(destination: CodeEditorView(translation: $translation)) {
+        NavigationLink(destination: CodeEditAndExecutionView(translation: $translation)) {
           Text("Edit and run code")
         }
       }
