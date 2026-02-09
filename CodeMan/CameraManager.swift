@@ -314,4 +314,3 @@ extension CameraManager: @preconcurrency AVCaptureVideoDataOutputSampleBufferDel
     onPreviewFrame?(ciImage)
   }
 }
-

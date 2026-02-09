@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 struct TranslationDetailView: View {
-  let translation: Translation
+  @State var translation: Translation
   
   var body: some View {
     ScrollView {
@@ -35,5 +35,13 @@ struct TranslationDetailView: View {
       }
     }
     .navigationTitle(translation.title)
+    .navigationBarTitleDisplayMode(.inline)
+    .toolbar {
+      ToolbarItem(placement: .topBarTrailing) {
+        NavigationLink(destination: CodeEditorView(translation: $translation)) {
+          Text("Edit and run code")
+        }
+      }
+    }
   }
 }

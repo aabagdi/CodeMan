@@ -71,6 +71,7 @@ struct TranslationGridView: View {
           }
         }
         .navigationTitle("Captured algorithms")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
           ToolbarItem(placement: .topBarLeading) {
             Button {
