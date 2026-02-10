@@ -6,26 +6,21 @@
 //
 
 import Foundation
-import SQLiteData
 import SwiftUI
 
 struct TranslationDetailView: View {
-  @State var viewModel: TranslationDetailViewModel
-  
-  init(translation: Translation) {
-    _viewModel = State(initialValue: TranslationDetailViewModel(translation: translation))
-  }
+  @State var translation: Translation
   
   var body: some View {
     ScrollView {
       VStack(spacing: 16) {
-        if let uiImage = UIImage(data: viewModel.translation.image ?? Data()) {
+        if let uiImage = UIImage(data: translation.image ?? Data()) {
           ImageHeaderView(image: Image(uiImage: uiImage))
         }
         
         CodeBlockView(
           title: "Original:",
-          code: viewModel.translation.originalText,
+          code: translation.originalText,
           backgroundColor: .secondary
         )
         
@@ -34,48 +29,19 @@ struct TranslationDetailView: View {
         
         CodeBlockView(
           title: "Python:",
-          code: viewModel.translation.prettifiedCode ?? AttributedString(),
+          code: translation.prettifiedCode ?? AttributedString(),
           backgroundColor: .green
         )
-        
-        Divider()
-          .padding()
-        
-        Button {
-          Task {
-            await viewModel.shareButtonTapped()
-          }
-        } label: {
-          HStack {
-            if viewModel.isSharing {
-              ProgressView()
-                .tint(.white)
-            } else {
-              Image(systemName: "square.and.arrow.up.fill")
-            }
-            Text("Share code with a friend!")
-          }
-          .frame(maxWidth: .infinity)
-          .padding(.vertical, 12)
-          .background(Color.green)
-          .foregroundStyle(.white)
-          .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-        .disabled(viewModel.isSharing)
       }
-      .padding()
-    }
-    .navigationTitle(viewModel.translation.title)
-    .navigationBarTitleDisplayMode(.inline)
-    .toolbar {
-      ToolbarItem(placement: .topBarTrailing) {
-        NavigationLink(destination: CodeEditAndExecutionView(translation: $viewModel.translation)) {
-          Text("Edit and run code")
+      .navigationTitle(translation.title)
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .topBarTrailing) {
+          NavigationLink(destination: CodeEditAndExecutionView(translation: $translation)) {
+            Text("Edit and run code")
+          }
         }
       }
-    }
-    .sheet(item: $viewModel.sharedRecord) { sharedRecord in
-      CloudSharingView(sharedRecord: sharedRecord)
     }
   }
 }

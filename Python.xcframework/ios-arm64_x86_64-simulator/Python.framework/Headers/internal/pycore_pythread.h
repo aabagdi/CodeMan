@@ -8,8 +8,8 @@ extern "C" {
 #  error "this header requires Py_BUILD_CORE define"
 #endif
 
-#include "dynamic_annotations.h" // _Py_ANNOTATE_PURE_HAPPENS_BEFORE_MUTEX
-#include "pycore_llist.h"        // struct llist_node
+#include "dynamic_annotations.h"     // _Py_ANNOTATE_PURE_HAPPENS_BEFORE_MUTEX
+#include "pycore_llist.h"            // struct llist_node
 
 // Get _POSIX_THREADS and _POSIX_SEMAPHORES macros if available
 #if (defined(HAVE_UNISTD_H) && !defined(_POSIX_THREADS) \
@@ -147,7 +147,7 @@ PyAPI_FUNC(int) PyThread_start_joinable_thread(void (*func)(void *),
 PyAPI_FUNC(int) PyThread_join_thread(PyThread_handle_t);
 /*
  * Detach a thread started with `PyThread_start_joinable_thread`, such
- * that its resources are relased as soon as it exits.
+ * that its resources are released as soon as it exits.
  * This function cannot be interrupted. It returns 0 on success,
  * a non-zero value on failure.
  */

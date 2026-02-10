@@ -15,7 +15,7 @@ struct CodeExecutionView: View {
   
   @State private var isRunningCode = false
   @State private var pythonVersion: String?
-  @State private var executionResult: String?
+  @State private var executionResult: PythonRunner.ExecutionResult?
   
   var body: some View {
     VStack {
@@ -32,12 +32,13 @@ struct CodeExecutionView: View {
         }
       
       if let result = executionResult {
-        Text(result)
+        Text(result.output)
+          .foregroundStyle(result.isError ? .red : .primary)
       }
     }
   }
   
-  func run(code: AttributedString) -> String {
+  func run(code: AttributedString) -> PythonRunner.ExecutionResult {
     isRunningCode = true
     defer { isRunningCode = false }
     
