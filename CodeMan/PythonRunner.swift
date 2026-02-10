@@ -50,21 +50,29 @@ final class PythonRunner {
       return ExecutionResult(output: "Python not initialized", isError: true)
     }
     
-    guard let mainModule = PyImport_AddModule("__main__") else {
-      return ExecutionResult(output: "Could not get __main__ module", isError: true)
+    guard let freshGlobals = PyDict_New() else {
+      return ExecutionResult(output: "Could not create namespace", isError: true)
+    }
+    defer { Py_DecRef(freshGlobals) }
+    
+    if let builtins = PyEval_GetBuiltins() {
+      PyDict_SetItemString(freshGlobals, "__builtins__", builtins)
     }
     
-    guard let globalDict = PyModule_GetDict(mainModule) else {
-      return ExecutionResult(output: "Could not get global dict", isError: true)
+    if let nameObj = PyUnicode_FromString("__main__") {
+      PyDict_SetItemString(freshGlobals, "__name__", nameObj)
+      Py_DecRef(nameObj)
     }
     
     guard let codeObj = PyUnicode_FromString(code) else {
       return ExecutionResult(output: "Could not create code string", isError: true)
     }
-    PyDict_SetItemString(globalDict, "_user_code", codeObj)
+    PyDict_SetItemString(freshGlobals, "_user_code", codeObj)
     Py_DecRef(codeObj)
     
     PyErr_Clear()
+    
+    PyDict_SetItemString(freshGlobals, "_fresh_ns", freshGlobals)
     
     let setupCode = """
     import sys
@@ -93,7 +101,7 @@ final class PythonRunner {
     _captured_stderr = ""
     try:
         _compiled = compile(_user_code, _user_filename, 'exec')
-        exec(_compiled, globals())
+        exec(_compiled, _fresh_ns)
     except Exception as e:
         import traceback
         _exec_error = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
@@ -103,27 +111,37 @@ final class PythonRunner {
         _captured_stdout = _stdout_capture.getvalue()
         _captured_stderr = _stderr_capture.getvalue()
     """
-    PyRun_SimpleString(setupCode)
+    
+    guard let setupCodeObj = Py_CompileString(setupCode, "<setup>", Py_file_input) else {
+      PyErr_Clear()
+      return ExecutionResult(output: "Could not compile setup code", isError: true)
+    }
+    defer { Py_DecRef(setupCodeObj) }
+    
+    let result = PyEval_EvalCode(setupCodeObj, freshGlobals, freshGlobals)
+    if result != nil {
+      Py_DecRef(result)
+    }
     
     var stdoutOutput = ""
     var stderrOutput = ""
     var execError = ""
     
-    if let outputObj = PyDict_GetItemString(globalDict, "_captured_stdout") {
+    if let outputObj = PyDict_GetItemString(freshGlobals, "_captured_stdout") {
       var size: Int = 0
       if let outputPtr = PyUnicode_AsUTF8AndSize(outputObj, &size) {
         stdoutOutput = String(cString: outputPtr).trimmingCharacters(in: .whitespacesAndNewlines)
       }
     }
     
-    if let errorObj = PyDict_GetItemString(globalDict, "_captured_stderr") {
+    if let errorObj = PyDict_GetItemString(freshGlobals, "_captured_stderr") {
       var size: Int = 0
       if let errorPtr = PyUnicode_AsUTF8AndSize(errorObj, &size) {
         stderrOutput = String(cString: errorPtr).trimmingCharacters(in: .whitespacesAndNewlines)
       }
     }
     
-    if let execErrorObj = PyDict_GetItemString(globalDict, "_exec_error") {
+    if let execErrorObj = PyDict_GetItemString(freshGlobals, "_exec_error") {
       var size: Int = 0
       if let errorPtr = PyUnicode_AsUTF8AndSize(execErrorObj, &size), size > 0 {
         execError = String(cString: errorPtr).trimmingCharacters(in: .whitespacesAndNewlines)
