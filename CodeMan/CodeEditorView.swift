@@ -29,6 +29,11 @@ struct CodeEditorView: View {
       .textInputAutocapitalization(.never)
       .autocorrectionDisabled(true)
       .padding()
+      .overlay(
+        RoundedRectangle(cornerRadius: 7)
+          .stroke(.black, lineWidth: 2)
+          .padding()
+      )
       .onAppear {
         text = highlight(translation.translatedCode ?? "")
       }

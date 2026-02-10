@@ -226,43 +226,6 @@ final class PythonRunner {
     return message.isEmpty ? typeName : "\(typeName): \(message)"
   }
   
-  func eval(expression: String) -> String {
-    guard isInitialized else { return "Error: Python not initialized" }
-    
-    guard let mainModule = PyImport_AddModule("__main__") else {
-      return "Error: Could not get __main__ module"
-    }
-    
-    guard let globalDict = PyModule_GetDict(mainModule) else {
-      return "Error: Could not get global dict"
-    }
-    
-    guard let result = PyRun_String(
-      expression,
-      Py_eval_input,
-      globalDict,
-      globalDict
-    ) else {
-      PyErr_Clear()
-      return "Error: Invalid expression"
-    }
-    
-    defer { Py_DecRef(result) }
-    
-    guard let strObj = PyObject_Str(result) else {
-      return "Error: Could not convert result to string"
-    }
-    
-    defer { Py_DecRef(strObj) }
-    
-    var size: Int = 0
-    if let strPtr = PyUnicode_AsUTF8AndSize(strObj, &size) {
-      return String(cString: strPtr)
-    }
-    
-    return "Error: Could not read result"
-  }
-  
   deinit {
     if isInitialized {
       Py_Finalize()

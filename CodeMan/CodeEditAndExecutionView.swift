@@ -10,6 +10,9 @@ import SwiftUI
 struct CodeEditAndExecutionView: View {
   @Binding var translation: Translation
   
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @Environment(\.verticalSizeClass) private var verticalSizeClass
+  
   @State private var executionResult: PythonRunner.ExecutionResult?
   @State private var isRunning = false
   
@@ -28,28 +31,31 @@ struct CodeEditAndExecutionView: View {
     return hasError ? .red : .primary
   }
   
+  private var isLandscapePhone: Bool {
+    horizontalSizeClass == .compact && verticalSizeClass == .compact
+  }
+  
   var body: some View {
+    Group {
+      if isLandscapePhone {
+        landscapeLayout
+      } else {
+        portraitLayout
+      }
+    }
+    .navigationTitle("Edit & Run")
+    .navigationBarTitleDisplayMode(.inline)
+  }
+  
+  private var portraitLayout: some View {
     VStack(spacing: 0) {
       CodeEditorView(translation: $translation)
       
       Divider()
       
       VStack(spacing: 12) {
-        Button {
-          runCode()
-        } label: {
-          HStack {
-            Image(systemName: isRunning ? "stop.fill" : "play.fill")
-            Text(isRunning ? "Running..." : "Run Code")
-          }
-          .frame(maxWidth: .infinity)
-          .padding(.vertical, 12)
-          .background(isRunning ? Color.orange : Color.green)
-          .foregroundStyle(.white)
-          .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-        .disabled(isRunning)
-        .padding(.horizontal)
+        runButton
+          .padding(.horizontal)
         
         OutputSection(
           hasError: hasError,
@@ -60,8 +66,44 @@ struct CodeEditAndExecutionView: View {
       }
       .padding(.vertical)
     }
-    .navigationTitle("Edit & Run")
-    .navigationBarTitleDisplayMode(.inline)
+  }
+  
+  private var landscapeLayout: some View {
+    HStack(spacing: 0) {
+      CodeEditorView(translation: $translation)
+        .frame(maxWidth: .infinity)
+      
+      Divider()
+      
+      VStack(spacing: 12) {
+        runButton
+        
+        OutputSection(
+          hasError: hasError,
+          outputText: outputText,
+          outputTextColor: outputTextColor
+        )
+      }
+      .padding()
+      .frame(width: 280)
+    }
+  }
+  
+  private var runButton: some View {
+    Button {
+      runCode()
+    } label: {
+      HStack {
+        Image(systemName: isRunning ? "stop.fill" : "play.fill")
+        Text(isRunning ? "Running..." : "Run Code")
+      }
+      .frame(maxWidth: .infinity)
+      .padding(.vertical, 12)
+      .background(isRunning ? Color.orange : Color.green)
+      .foregroundStyle(.white)
+      .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+    .disabled(isRunning)
   }
   
   func runCode() {
