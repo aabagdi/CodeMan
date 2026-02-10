@@ -45,9 +45,20 @@ final class PythonRunner {
     let isError: Bool
   }
   
+  private let maxCodeLength = 50_000
+  private let maxOutputLength = 100_000
+  private let executionTimeoutSeconds = 10
+  
   func run(code: String) -> ExecutionResult {
     guard isInitialized else {
       return ExecutionResult(output: "Python not initialized", isError: true)
+    }
+    
+    guard code.count <= maxCodeLength else {
+      return ExecutionResult(
+        output: "Code exceeds maximum length of \(maxCodeLength) characters",
+        isError: true
+      )
     }
     
     guard let freshGlobals = PyDict_New() else {
@@ -77,7 +88,39 @@ final class PythonRunner {
     let setupCode = """
     import sys
     import linecache
+    import builtins
+    import time as _time
     from io import StringIO
+    
+    # Security: Execution timeout
+    _start_time = _time.time()
+    _timeout_seconds = \(executionTimeoutSeconds)
+    
+    class _TimeoutError(Exception):
+        pass
+    
+    def _timeout_trace(frame, event, arg):
+        if _time.time() - _start_time > _timeout_seconds:
+            raise _TimeoutError(f"Execution exceeded {_timeout_seconds} second time limit")
+        return _timeout_trace
+    
+    # Security: Restrict dangerous module imports
+    _original_import = builtins.__import__
+    _blocked_modules = {
+        'subprocess',                                  # process spawning
+        'socket', 'http', 'urllib', 'ftplib',          # network access
+        'requests', 'httpx', 'aiohttp',                # common network libraries
+        'multiprocessing',                             # process spawning
+        'ctypes', 'cffi',                              # native code access
+    }
+    
+    def _restricted_import(name, globals=None, locals=None, fromlist=(), level=0):
+        base_module = name.split('.')[0]
+        if base_module in _blocked_modules:
+            raise ImportError(f"Module '{name}' is not available in this environment")
+        return _original_import(name, globals, locals, fromlist, level)
+    
+    builtins.__import__ = _restricted_import
     
     _user_filename = "<user_code>"
     
@@ -96,20 +139,26 @@ final class PythonRunner {
     sys.stdout = _stdout_capture
     sys.stderr = _stderr_capture
     
-    _exec_error = None
-    _captured_stdout = ""
-    _captured_stderr = ""
+    _fresh_ns['_exec_error'] = None
+    _fresh_ns['_captured_stdout'] = ""
+    _fresh_ns['_captured_stderr'] = ""
     try:
         _compiled = compile(_user_code, _user_filename, 'exec')
+        sys.settrace(_timeout_trace)
         exec(_compiled, _fresh_ns)
+    except _TimeoutError as e:
+        _fresh_ns['_exec_error'] = str(e)
     except Exception as e:
         import traceback
-        _exec_error = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+        _fresh_ns['_exec_error'] = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
     finally:
+        sys.settrace(None)
+        # Restore original import to avoid affecting other parts of the app
+        builtins.__import__ = _original_import
         sys.stdout = _old_stdout
         sys.stderr = _old_stderr
-        _captured_stdout = _stdout_capture.getvalue()
-        _captured_stderr = _stderr_capture.getvalue()
+        _fresh_ns['_captured_stdout'] = _stdout_capture.getvalue()
+        _fresh_ns['_captured_stderr'] = _stderr_capture.getvalue()
     """
     
     guard let setupCodeObj = Py_CompileString(setupCode, "<setup>", Py_file_input) else {
@@ -121,6 +170,26 @@ final class PythonRunner {
     let result = PyEval_EvalCode(setupCodeObj, freshGlobals, freshGlobals)
     if result != nil {
       Py_DecRef(result)
+    } else if PyErr_Occurred() != nil {
+      var pType: UnsafeMutablePointer<PyObject>?
+      var pValue: UnsafeMutablePointer<PyObject>?
+      var pTraceback: UnsafeMutablePointer<PyObject>?
+      PyErr_Fetch(&pType, &pValue, &pTraceback)
+      
+      var errorMessage = "Setup code failed"
+      if let pValue = pValue, let strObj = PyObject_Str(pValue) {
+        var size: Int = 0
+        if let strPtr = PyUnicode_AsUTF8AndSize(strObj, &size) {
+          errorMessage = String(cString: strPtr)
+        }
+        Py_DecRef(strObj)
+      }
+      
+      if let t = pType { Py_DecRef(t) }
+      if let v = pValue { Py_DecRef(v) }
+      if let tb = pTraceback { Py_DecRef(tb) }
+      
+      return ExecutionResult(output: "Internal error: \(errorMessage)", isError: true)
     }
     
     var stdoutOutput = ""
@@ -158,6 +227,14 @@ final class PythonRunner {
     
     if stdoutOutput.isEmpty {
       return ExecutionResult(output: "Code executed successfully (no output)", isError: false)
+    }
+    
+    if stdoutOutput.count > maxOutputLength {
+      let truncated = String(stdoutOutput.prefix(maxOutputLength))
+      return ExecutionResult(
+        output: truncated + "\n\n... (output truncated at \(maxOutputLength) characters)",
+        isError: false
+      )
     }
     
     return ExecutionResult(output: stdoutOutput, isError: false)
