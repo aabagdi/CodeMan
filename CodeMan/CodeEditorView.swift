@@ -26,6 +26,8 @@ struct CodeEditorView: View {
   var body: some View {
     TextEditor(text: $text, selection: $selection)
       .fontDesign(.monospaced)
+      .textInputAutocapitalization(.never)
+      .autocorrectionDisabled(true)
       .padding()
       .onAppear {
         text = highlight(translation.translatedCode ?? "")
