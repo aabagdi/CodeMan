@@ -91,7 +91,7 @@ struct CodeEditorView: View {
     let translatedCode = translation.translatedCode
     let prettifiedCode = translation.prettifiedCode
     
-    do {
+    await withErrorReporting {
       try await database.write { db in
         try Translation
           .find(id)
@@ -101,8 +101,6 @@ struct CodeEditorView: View {
           }
           .execute(db)
       }
-    } catch {
-      print("Failed to save translation: \(error)")
     }
   }
   
