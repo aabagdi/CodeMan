@@ -59,6 +59,8 @@ actor TranslationSessionManager {
            4. SIMPLIFY when appropriate - if C++ uses a main() function just to print, translate to a simple print statement
            5. Remove boilerplate that isn't needed in Python (like main() for simple scripts)
            6. Preserve the exact logical operations, but adapt the structure to Python conventions
+           7. CODE MUST BE SELF-CONTAINED AND RUNNABLE: Every variable must be defined before use. Never reference undefined variables like 'visited' or 'discovered' without initializing them first.
+           8. For graph/tree algorithms: Use ONE consistent approach - either all methods inside a class, OR all standalone functions. Never mix both with shared state.
            
            EXAMPLE DATA PROVISION (MANDATORY FOR KNOWN ALGORITHMS):
            - If the code implements a well-known algorithm (sorting, searching, tree traversal, etc.) 
@@ -70,7 +72,8 @@ actor TranslationSessionManager {
              * Sorting algorithms → add unsorted array: arr = [64, 34, 25, 12, 22, 11, 90]
              * Binary search → add sorted array AND target: arr = [1, 3, 5, 7, 9, 11, 13]; target = 7
              * Linear search → add array AND target: arr = [10, 20, 30, 40, 50]; target = 30
-             * Tree algorithms → add simple tree structure
+             * Tree algorithms → add simple tree structure with complete Node class (define ALL properties in __init__)
+             * Graph algorithms → add Graph class with __init__ that defines self.graph = defaultdict(list), add_edge method, and example edges. CRITICAL: Every property used in any method MUST be initialized in __init__
              * Recursive algorithms → add appropriate input value
            - ALWAYS add a print statement or function call at the end to show the result
            - Do NOT add data only when:
@@ -196,10 +199,18 @@ actor TranslationSessionManager {
        "\n\n[IMPORTANT: Add example - call the function with n = 10 and print the result]"),
       (["factorial"],
        "\n\n[IMPORTANT: Add example - call the function with n = 5 and print the result]"),
-      (["bfs", "breadth"],
-       "\n\n[IMPORTANT: Add example graph data and a starting node, then call the function and print the result]"),
-      (["dfs", "depth"],
-       "\n\n[IMPORTANT: Add example graph data and a starting node, then call the function and print the result]"),
+      (["bfs"],
+       "\n\n[IMPORTANT: Follow this EXACT pattern for a complete BFS:\nfrom collections import defaultdict, deque\nclass Graph:\n    def __init__(self):\n        self.graph = defaultdict(list)\n    def add_edge(self, u, v):\n        self.graph[u].append(v)\n    def bfs(self, start):\n        visited = set()\n        queue = deque([start])\n        visited.add(start)\n        result = []\n        while queue:\n            vertex = queue.popleft()\n            result.append(vertex)\n            for neighbor in self.graph[vertex]:\n                if neighbor not in visited:\n                    visited.add(neighbor)\n                    queue.append(neighbor)\n        return result\n\ng = Graph()\ng.add_edge(0, 1)\ng.add_edge(0, 2)\ng.add_edge(1, 2)\ng.add_edge(2, 3)\nprint(g.bfs(0))\n\nAdapt this pattern to match the input code's logic. ALL variables must be defined before use. Do NOT create standalone functions that reference undefined global variables.]"),
+      (["breadth"],
+       "\n\n[IMPORTANT: Follow this EXACT pattern for a complete BFS:\nfrom collections import defaultdict, deque\nclass Graph:\n    def __init__(self):\n        self.graph = defaultdict(list)\n    def add_edge(self, u, v):\n        self.graph[u].append(v)\n    def bfs(self, start):\n        visited = set()\n        queue = deque([start])\n        visited.add(start)\n        result = []\n        while queue:\n            vertex = queue.popleft()\n            result.append(vertex)\n            for neighbor in self.graph[vertex]:\n                if neighbor not in visited:\n                    visited.add(neighbor)\n                    queue.append(neighbor)\n        return result\n\ng = Graph()\ng.add_edge(0, 1)\ng.add_edge(0, 2)\ng.add_edge(1, 2)\ng.add_edge(2, 3)\nprint(g.bfs(0))\n\nAdapt this pattern to match the input code's logic. ALL variables must be defined before use. Do NOT create standalone functions that reference undefined global variables.]"),
+      (["dfs"],
+       "\n\n[IMPORTANT: Follow this EXACT pattern for a complete DFS:\nfrom collections import defaultdict\nclass Graph:\n    def __init__(self):\n        self.graph = defaultdict(list)\n    def add_edge(self, u, v):\n        self.graph[u].append(v)\n    def dfs(self, start):\n        visited = set()\n        result = []\n        self._dfs_helper(start, visited, result)\n        return result\n    def _dfs_helper(self, vertex, visited, result):\n        visited.add(vertex)\n        result.append(vertex)\n        for neighbor in self.graph[vertex]:\n            if neighbor not in visited:\n                self._dfs_helper(neighbor, visited, result)\n\ng = Graph()\ng.add_edge(0, 1)\ng.add_edge(0, 2)\ng.add_edge(1, 2)\ng.add_edge(2, 3)\nprint(g.dfs(0))\n\nAdapt this pattern to match the input code's logic. ALL variables must be defined before use. Do NOT create standalone functions that reference undefined global variables.]"),
+      (["depth"],
+       "\n\n[IMPORTANT: Follow this EXACT pattern for a complete DFS:\nfrom collections import defaultdict\nclass Graph:\n    def __init__(self):\n        self.graph = defaultdict(list)\n    def add_edge(self, u, v):\n        self.graph[u].append(v)\n    def dfs(self, start):\n        visited = set()\n        result = []\n        self._dfs_helper(start, visited, result)\n        return result\n    def _dfs_helper(self, vertex, visited, result):\n        visited.add(vertex)\n        result.append(vertex)\n        for neighbor in self.graph[vertex]:\n            if neighbor not in visited:\n                self._dfs_helper(neighbor, visited, result)\n\ng = Graph()\ng.add_edge(0, 1)\ng.add_edge(0, 2)\ng.add_edge(1, 2)\ng.add_edge(2, 3)\nprint(g.dfs(0))\n\nAdapt this pattern to match the input code's logic. ALL variables must be defined before use. Do NOT create standalone functions that reference undefined global variables.]"),
+      (["graph", "traversal"],
+       "\n\n[IMPORTANT: This is a graph algorithm. You MUST include a complete Graph class with __init__ that initializes self.graph = defaultdict(list), an add_edge method, and the traversal method. Add example edges and call the traversal. ALL variables must be defined before use.]"),
+      (["adjacency"],
+       "\n\n[IMPORTANT: This is a graph algorithm. You MUST include a complete Graph class with __init__ that initializes self.graph = defaultdict(list), an add_edge method, and any traversal methods. Add example edges and demonstrate usage. ALL variables must be defined before use.]"),
     ]
     
     for (keywords, instruction) in algorithmPatterns {
