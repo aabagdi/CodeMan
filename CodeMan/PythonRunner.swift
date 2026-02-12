@@ -104,24 +104,6 @@ final class PythonRunner {
             raise _TimeoutError(f"Execution exceeded {_timeout_seconds} second time limit")
         return _timeout_trace
     
-    # Security: Restrict dangerous module imports
-    _original_import = builtins.__import__
-    _blocked_modules = {
-        'subprocess',                                  # process spawning
-        'socket', 'http', 'urllib', 'ftplib',          # network access
-        'requests', 'httpx', 'aiohttp',                # common network libraries
-        'multiprocessing',                             # process spawning
-        'ctypes', 'cffi',                              # native code access
-    }
-    
-    def _restricted_import(name, globals=None, locals=None, fromlist=(), level=0):
-        base_module = name.split('.')[0]
-        if base_module in _blocked_modules:
-            raise ImportError(f"Module '{name}' is not available in this environment")
-        return _original_import(name, globals, locals, fromlist, level)
-    
-    builtins.__import__ = _restricted_import
-    
     _user_filename = "<user_code>"
     
     # Store source in linecache so tracebacks can display it
@@ -153,8 +135,6 @@ final class PythonRunner {
         _fresh_ns['_exec_error'] = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
     finally:
         sys.settrace(None)
-        # Restore original import to avoid affecting other parts of the app
-        builtins.__import__ = _original_import
         sys.stdout = _old_stdout
         sys.stderr = _old_stderr
         _fresh_ns['_captured_stdout'] = _stdout_capture.getvalue()
