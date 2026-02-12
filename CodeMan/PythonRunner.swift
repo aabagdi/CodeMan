@@ -7,6 +7,7 @@
 
 import Foundation
 
+@MainActor
 final class PythonRunner {
   static let shared = PythonRunner()
   
