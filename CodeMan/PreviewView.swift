@@ -9,7 +9,9 @@ import SwiftUI
 
 struct PreviewView: View {
   @Environment(CameraModel.self) var model
+  
   private let footerHeight: CGFloat = 110.0
+  
   @State private var focusLocation: CGPoint?
   @State private var showFocusIndicator = false
   @State private var isCapturing = false
@@ -99,4 +101,3 @@ struct FocusIndicator: View {
     .transition(.scale.combined(with: .opacity))
   }
 }
-
