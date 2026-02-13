@@ -48,7 +48,7 @@ final class PythonRunner {
   
   private let maxCodeLength = 50_000
   private let maxOutputLength = 100_000
-  private let executionTimeoutSeconds = 10
+  private let executionTimeoutSeconds = 5
   
   func run(code: String) -> ExecutionResult {
     guard isInitialized else {

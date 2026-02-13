@@ -18,6 +18,7 @@ struct TranslationGridItemView: View {
           .resizable()
           .scaledToFill()
           .frame(width: size, height: size)
+          .contentShape(Rectangle())
           .clipped()
           .clipShape(RoundedRectangle(cornerRadius: 5))
       } else {
@@ -33,5 +34,6 @@ struct TranslationGridItemView: View {
         .bold()
         .lineLimit(1)
     }
+    .contentShape(Rectangle())
   }
 }

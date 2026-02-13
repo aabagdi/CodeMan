@@ -15,17 +15,18 @@ struct CodeEditAndExecutionView: View {
   
   @State private var executionResult: PythonRunner.ExecutionResult?
   @State private var isRunning = false
+  @State private var pythonVersion: String?
   
   private var hasError: Bool {
     executionResult?.isError == true
   }
   
-  private var outputText: String {
-    executionResult?.output ?? "Press Run to execute code"
+  private var outputText: String? {
+    executionResult?.output
   }
   
   private var outputTextColor: Color {
-    if executionResult == nil {
+    if outputText == nil {
       return .secondary
     }
     return hasError ? .red : .primary
@@ -45,6 +46,9 @@ struct CodeEditAndExecutionView: View {
     }
     .navigationTitle("Edit & Run")
     .navigationBarTitleDisplayMode(.inline)
+    .onAppear {
+      pythonVersion = "Python " + PythonRunner.shared.getVersion()
+    }
   }
   
   private var portraitLayout: some View {
@@ -60,7 +64,8 @@ struct CodeEditAndExecutionView: View {
         OutputSection(
           hasError: hasError,
           outputText: outputText,
-          outputTextColor: outputTextColor
+          outputTextColor: outputTextColor,
+          pythonVersion: pythonVersion
         )
         .padding(.horizontal)
       }
@@ -81,7 +86,8 @@ struct CodeEditAndExecutionView: View {
         OutputSection(
           hasError: hasError,
           outputText: outputText,
-          outputTextColor: outputTextColor
+          outputTextColor: outputTextColor,
+          pythonVersion: pythonVersion
         )
       }
       .padding()
@@ -120,8 +126,16 @@ struct CodeEditAndExecutionView: View {
 
 private struct OutputSection: View {
   let hasError: Bool
-  let outputText: String
+  let outputText: String?
   let outputTextColor: Color
+  let pythonVersion: String?
+  
+  private var displayText: String {
+    if let output = outputText {
+      return output
+    }
+    return pythonVersion ?? "Initializing Python..."
+  }
   
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
@@ -138,7 +152,7 @@ private struct OutputSection: View {
       }
       
       ScrollView {
-        Text(outputText)
+        Text(displayText)
           .font(.system(.body, design: .monospaced))
           .frame(maxWidth: .infinity, alignment: .leading)
           .foregroundStyle(outputTextColor)
