@@ -30,6 +30,7 @@ struct TranslationGridItemView: View {
       
       Text(translation.title)
         .font(.caption2)
+        .bold()
         .lineLimit(1)
     }
   }

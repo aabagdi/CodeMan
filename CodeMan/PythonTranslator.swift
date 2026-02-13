@@ -38,19 +38,31 @@ actor TranslationSessionManager {
            only give the code, and no other text.
            
            CRITICAL LIBRARY RESTRICTION:
-           You may ONLY use Python's standard library. Do NOT use any third-party 
-           packages such as numpy, pandas, scipy, requests, matplotlib, pillow, 
-           opencv, tensorflow, pytorch, sklearn, or any other pip-installable package.
+           This app only includes a SUBSET of Python's standard library. You may ONLY 
+           use the following modules:
            
-           If the original code uses a third-party library, translate it using only
-           standard library equivalents:
+           Math & Science: math, cmath, decimal, fractions, random, statistics
+           Data Structures: collections, heapq, bisect, array, itertools, functools
+           String & Text: string, re, textwrap
+           Type Hints: typing, types
+           Date & Time: datetime, calendar
+           Data Formats: json, csv
+           Other: copy, pprint, enum, dataclasses
+           
+           Do NOT use any third-party packages (numpy, pandas, scipy, requests, 
+           matplotlib, pillow, opencv, tensorflow, pytorch, sklearn, etc.) or any
+           standard library modules not listed above (os, sys, subprocess, socket, 
+           threading, multiprocessing, pathlib, glob, shutil, pickle, sqlite3, etc.).
+           
+           If the original code uses an unavailable module, translate it using only
+           the allowed modules listed above:
            - Instead of numpy arrays, use Python lists with list comprehensions
            - Instead of pandas DataFrames, use lists of dictionaries or csv module
-           - Instead of requests, use urllib.request
            - For math operations, use the math module
            - For random numbers, use the random module
            - For JSON, use the json module
-           - For file operations, use built-in open() or pathlib
+           - For file operations, note that file I/O is NOT available
+           - For networking, note that networking is NOT available
            
            CRITICAL RULES:
            1. Translate the provided code to idiomatic Python - preserve the FUNCTIONALITY, not necessarily the structure
