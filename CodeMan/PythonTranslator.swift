@@ -108,6 +108,7 @@ actor TranslationSessionManager {
            - Use zip() for parallel iteration: for a, b in zip(list1, list2)
            - Prefer 'with' statements for file/resource handling
            - Use f-strings for string formatting: f"Value: {value}"
+           - Use ** for exponentiation instead of math.pow() unless floats are specifically needed
            - Use .append() for adding single items, .extend() for multiple
            - Use 'is' for None checks: if value is None
            - Use tuple unpacking for swaps: a, b = b, a (NEVER define a swap function)
