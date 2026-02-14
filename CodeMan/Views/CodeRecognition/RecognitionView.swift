@@ -77,6 +77,7 @@ struct RecognitionView: View {
           }
         }
       }
+    .sensoryFeedback(.success, trigger: viewModel.hasTranslatedCode)
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
         Button("Save code") {
