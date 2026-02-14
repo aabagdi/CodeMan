@@ -104,7 +104,7 @@ struct RecognitionView: View {
         showingSaveError = false
       }
     }
-    .alert("Translation with the same name already exists!",
+    .alert("Algorithm with the same name already exists!",
            isPresented: $viewModel.showingSameNameExistsError) {
       Button("OK") {
         viewModel.showingSameNameExistsError = false
