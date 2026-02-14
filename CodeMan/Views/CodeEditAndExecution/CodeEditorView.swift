@@ -7,8 +7,6 @@
 
 import SwiftUI
 import SQLiteData
-import Highlighter
-import UIKit
 import Dependencies
 
 struct CodeEditorView: View {
@@ -18,13 +16,13 @@ struct CodeEditorView: View {
   
   @Dependency(\.defaultDatabase) var database
   
+  @Environment(\.colorScheme) private var colorScheme
+  
   @State private var text: AttributedString = ""
   @State private var selection = AttributedTextSelection()
   @State private var highlightTask: Task<Void, Never>?
   @State private var saveTask: Task<Void, Never>?
   @State private var isInitialized = false
-  
-  let highlighter = Highlighter()
   
   init(translationID: Translation.ID) {
     self.translationID = translationID
@@ -53,6 +51,10 @@ struct CodeEditorView: View {
           text = highlight(translation.translatedCode ?? "")
           isInitialized = true
         }
+      }
+      .onChange(of: colorScheme) {
+        let plainText = String(text.characters)
+        text = highlight(plainText)
       }
       .onChange(of: text) {
         guard isInitialized else { return }
@@ -94,21 +96,19 @@ struct CodeEditorView: View {
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
             
-            let highlightedCode = highlight(newPlainText)
-            await saveToDatabase(translatedCode: newPlainText, prettifiedCode: highlightedCode)
+            await saveToDatabase(translatedCode: newPlainText)
           }
         }
       }
   }
   
-  func saveToDatabase(translatedCode: String, prettifiedCode: AttributedString) async {
+  func saveToDatabase(translatedCode: String) async {
     await withErrorReporting {
       try await database.write { db in
         try Translation
           .find(translationID)
           .update {
             $0.translatedCode = translatedCode
-            $0.prettifiedCode = prettifiedCode
           }
           .execute(db)
       }
@@ -116,34 +116,6 @@ struct CodeEditorView: View {
   }
   
   func highlight(_ code: String) -> AttributedString {
-    guard let highlighter else { return AttributedString(code) }
-    
-    highlighter.setTheme("atom-one-light")
-    
-    guard let highlightedNS = highlighter.highlight(code, as: "python") else {
-      return AttributedString(code)
-    }
-    
-    var result = AttributedString(code)
-    
-    highlightedNS.enumerateAttributes(
-      in: NSRange(location: 0, length: highlightedNS.length),
-      options: []
-    ) { attrs, nsRange, _ in
-      guard let stringRange = Range(nsRange, in: code) else { return }
-      
-      let startOffset = code.distance(from: code.startIndex, to: stringRange.lowerBound)
-      let endOffset = code.distance(from: code.startIndex, to: stringRange.upperBound)
-      
-      let attrStart = result.characters.index(result.startIndex, offsetBy: startOffset)
-      let attrEnd = result.characters.index(result.startIndex, offsetBy: endOffset)
-      let attrRange = attrStart..<attrEnd
-      
-      if let uiColor = attrs[.foregroundColor] as? UIColor {
-        result[attrRange].foregroundColor = Color(uiColor: uiColor)
-      }
-    }
-    
-    return result
+    CodeHighlighter.shared.highlight(code, colorScheme: colorScheme)
   }
 }

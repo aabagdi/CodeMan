@@ -266,7 +266,7 @@ actor CameraManager: NSObject {
 extension CameraManager: @preconcurrency AVCapturePhotoCaptureDelegate {
   nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
     
-    if let error = error {
+    if let error {
       print("Error capturing photo: \(error.localizedDescription)")
       return
     }

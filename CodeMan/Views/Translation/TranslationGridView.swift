@@ -49,6 +49,11 @@ struct TranslationGridView: View {
         }
     }
     .searchable(text: $searchText)
+    .onChange(of: translations) {
+      if translations.isEmpty {
+        inDeletionMode = false
+      }
+    }
     .task(id: searchText) {
       _ = await withErrorReporting {
         if searchText.isEmpty {

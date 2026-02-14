@@ -18,8 +18,6 @@ struct Translation: Identifiable, Hashable {
   let image: Data?
   let originalText: String
   var translatedCode: String?
-  @Column(as: AttributedString?.JSONRepresentation.self)
-  var prettifiedCode: AttributedString?
 }
 
 extension DependencyValues {
@@ -64,8 +62,7 @@ extension DependencyValues {
           "title" TEXT NOT NULL DEFAULT '',
           "image" BLOB,
           "originalText" TEXT NOT NULL DEFAULT '',
-          "translatedCode" TEXT,
-          "prettifiedCode" TEXT
+          "translatedCode" TEXT
         ) STRICT
         """)
         .execute(db)

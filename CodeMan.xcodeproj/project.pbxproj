@@ -51,7 +51,7 @@
 		397EF19E2F3A9255007A5C8E /* Exceptions for "CodeMan" folder in "CodeMan" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Info.plist,
+				Supporting/Info.plist,
 			);
 			target = 39AB77372F3095BF007B2638 /* CodeMan */;
 		};
@@ -339,14 +339,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = CodeManIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = CodeMan/CodeMan.entitlements;
+				CODE_SIGN_ENTITLEMENTS = CodeMan/Supporting/CodeMan.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3798C43WZH;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = CodeMan/Info.plist;
+				INFOPLIST_FILE = CodeMan/Supporting/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = CodeMan;
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app requires camera to translate code in a picture to Python.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app requires access to the Photo Library in order to read code from images to translate to Python.";
@@ -367,7 +367,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "CodeMan/CodeMan-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "CodeMan/Supporting/CodeMan-Bridging-Header.h";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
@@ -380,14 +380,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = CodeManIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = CodeMan/CodeMan.entitlements;
+				CODE_SIGN_ENTITLEMENTS = CodeMan/Supporting/CodeMan.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3798C43WZH;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = CodeMan/Info.plist;
+				INFOPLIST_FILE = CodeMan/Supporting/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = CodeMan;
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app requires camera to translate code in a picture to Python.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app requires access to the Photo Library in order to read code from images to translate to Python.";
@@ -408,7 +408,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "CodeMan/CodeMan-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "CodeMan/Supporting/CodeMan-Bridging-Header.h";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;

@@ -811,7 +811,10 @@ final class PythonRunner {
     }
     
     if stdoutOutput.isEmpty {
-      return ExecutionResult(output: "Code executed successfully (no output)", isError: false)
+      return ExecutionResult(
+        output: "Code ran without errors but produced no output.\n\nTip: Add print() statements to see results. For example:\n• print(result)\n• print(f\"Answer: {value}\")",
+        isError: false
+      )
     }
     
     if stdoutOutput.count > maxOutputLength {

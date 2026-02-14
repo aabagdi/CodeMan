@@ -6,9 +6,7 @@
 //
 
 import SwiftUI
-import UIKit
 import Vision
-import Highlighter
 import SQLiteData
 
 @Observable
@@ -22,7 +20,6 @@ final class RecognitionViewModel {
   
   private var recognizer = CodeRecognizer()
   private let translator = TranslationSessionManager()
-  private let highlighter = Highlighter()
   
   var codeTitle: String = ""
   var translatedCode: String = ""
@@ -53,17 +50,17 @@ final class RecognitionViewModel {
     !String(prettifiedCode.characters).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
   
-  func performRecognitionAndTranslation(for image: PhotoData) async {
+  func performRecognitionAndTranslation(for image: PhotoData, colorScheme: ColorScheme) async {
     do {
       try await recognizer.performRecognition(image)
-      await translateAllText()
+      await translateAllText(colorScheme: colorScheme)
     } catch {
       showingTranslationError = true
       print("Recognition failed: \(error)")
     }
   }
   
-  func translateAllText() async {
+  func translateAllText(colorScheme: ColorScheme) async {
     guard hasCodeToTranslate else {
       print("No code to translate")
       return
@@ -83,14 +80,8 @@ final class RecognitionViewModel {
         
         translatedCode = cleanedCode
         
-        guard let highlighter else { return }
-        
-        highlighter.setTheme("atom-one-light")
-        
-        if let highlightedNS = highlighter.highlight(cleanedCode, as: "python") {
-          prettifiedCode = extractColorsOnly(from: highlightedNS, plainText: cleanedCode)
-          print("Translation complete:\n\(cleanedCode)")
-        }
+        prettifiedCode = CodeHighlighter.shared.highlight(cleanedCode, colorScheme: colorScheme)
+        print("Translation complete:\n\(cleanedCode)")
       }
     } catch {
       print("Translation error: \(error)")
@@ -107,6 +98,11 @@ final class RecognitionViewModel {
     showingTranslationError = false
   }
   
+  func rehighlight(colorScheme: ColorScheme) {
+    guard !translatedCode.isEmpty else { return }
+    prettifiedCode = CodeHighlighter.shared.highlight(translatedCode, colorScheme: colorScheme)
+  }
+  
   func saveCode(image: PhotoData?) throws -> Bool {
     let exists = try database.read { db in
       try Translation.where { $0.title.eq(codeTitle) }.fetchCount(db) > 0
@@ -118,8 +114,7 @@ final class RecognitionViewModel {
         title: codeTitle,
         image: image?.imageData,
         originalText: recognizer.fullCodeBlock,
-        translatedCode: translatedCode,
-        prettifiedCode: prettifiedCode
+        translatedCode: translatedCode
       )
       
       withErrorReporting {
@@ -140,34 +135,15 @@ final class RecognitionViewModel {
   private func stripMarkdownCodeBlocks(from text: String) -> String {
     var result = text
     
-    result = result.replacingOccurrences(of: #"^```\w*\n?"#, with: "", options: .regularExpression)
+    // Remove opening code fence at start (```python, ```swift, etc.)
+    result = result.replacing(/^```\w*\n?/, with: "")
     
-    result = result.replacingOccurrences(of: #"\n?```$"#, with: "", options: .regularExpression)
+    // Remove closing code fence at end (``` or ```python, etc.)
+    result = result.replacing(/\n?```\w*$/, with: "")
+    
+    // Remove any standalone code fence lines (with or without language)
+    result = result.replacing(/(?m)^```\w*\s*$/, with: "")
     
     return result.trimmingCharacters(in: .whitespacesAndNewlines)
-  }
-  
-  private func extractColorsOnly(from highlightedNS: NSAttributedString, plainText: String) -> AttributedString {
-    var result = AttributedString(plainText)
-    
-    highlightedNS.enumerateAttributes(
-      in: NSRange(location: 0, length: highlightedNS.length),
-      options: []
-    ) { attrs, nsRange, _ in
-      guard let stringRange = Range(nsRange, in: plainText) else { return }
-      
-      let startOffset = plainText.distance(from: plainText.startIndex, to: stringRange.lowerBound)
-      let endOffset = plainText.distance(from: plainText.startIndex, to: stringRange.upperBound)
-      
-      let attrStart = result.characters.index(result.startIndex, offsetBy: startOffset)
-      let attrEnd = result.characters.index(result.startIndex, offsetBy: endOffset)
-      let attrRange = attrStart..<attrEnd
-      
-      if let uiColor = attrs[.foregroundColor] as? UIColor {
-        result[attrRange].foregroundColor = Color(uiColor: uiColor)
-      }
-    }
-    
-    return result
   }
 }

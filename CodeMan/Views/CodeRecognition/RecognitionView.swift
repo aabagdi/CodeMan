@@ -11,6 +11,8 @@ struct RecognitionView: View {
   let image: PhotoData?
   @Binding var navigationPath: NavigationPath
   
+  @Environment(\.colorScheme) private var colorScheme
+  
   @State private var viewModel = RecognitionViewModel()
   @State private var showingSaveError: Bool = false
   
@@ -118,7 +120,10 @@ struct RecognitionView: View {
     }
     .task {
       guard let imageData = image else { return }
-      await viewModel.performRecognitionAndTranslation(for: imageData)
+      await viewModel.performRecognitionAndTranslation(for: imageData, colorScheme: colorScheme)
+    }
+    .onChange(of: colorScheme) {
+      viewModel.rehighlight(colorScheme: colorScheme)
     }
   }
 }

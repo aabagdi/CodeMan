@@ -14,9 +14,18 @@ struct TranslationDetailView: View {
   
   @FetchOne var translation: Translation?
   
+  @Environment(\.colorScheme) private var colorScheme
+  
   init(translationID: Translation.ID) {
     self.translationID = translationID
     _translation = FetchOne(Translation.find(translationID))
+  }
+  
+  private var highlightedCode: AttributedString {
+    guard let code = translation?.translatedCode, !code.isEmpty else {
+      return AttributedString()
+    }
+    return CodeHighlighter.shared.highlight(code, colorScheme: colorScheme)
   }
   
   var body: some View {
@@ -38,7 +47,7 @@ struct TranslationDetailView: View {
           
           CodeBlockView(
             title: "Python:",
-            code: translation.prettifiedCode ?? AttributedString(),
+            code: highlightedCode,
             backgroundColor: .green
           )
         }
