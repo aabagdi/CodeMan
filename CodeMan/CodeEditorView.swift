@@ -12,7 +12,9 @@ import UIKit
 import Dependencies
 
 struct CodeEditorView: View {
-  @Binding var translation: Translation
+  let translationID: Translation.ID
+  
+  @FetchOne var translation: Translation?
   
   @Dependency(\.defaultDatabase) var database
   
@@ -20,8 +22,14 @@ struct CodeEditorView: View {
   @State private var selection = AttributedTextSelection()
   @State private var highlightTask: Task<Void, Never>?
   @State private var saveTask: Task<Void, Never>?
+  @State private var isInitialized = false
   
   let highlighter = Highlighter()
+  
+  init(translationID: Translation.ID) {
+    self.translationID = translationID
+    _translation = FetchOne(Translation.find(translationID))
+  }
   
   var body: some View {
     TextEditor(text: $text, selection: $selection)
@@ -35,14 +43,22 @@ struct CodeEditorView: View {
           .padding()
       )
       .onAppear {
-        text = highlight(translation.translatedCode ?? "")
+        if !isInitialized, let translation {
+          text = highlight(translation.translatedCode ?? "")
+          isInitialized = true
+        }
+      }
+      .onChange(of: translation) {
+        if !isInitialized, let translation {
+          text = highlight(translation.translatedCode ?? "")
+          isInitialized = true
+        }
       }
       .onChange(of: text) {
+        guard isInitialized else { return }
         let newPlainText = String(text.characters)
         
-        if translation.translatedCode != newPlainText {
-          translation.translatedCode = newPlainText
-          
+        if translation?.translatedCode != newPlainText {
           highlightTask?.cancel()
           saveTask?.cancel()
           
@@ -79,22 +95,17 @@ struct CodeEditorView: View {
             guard !Task.isCancelled else { return }
             
             let highlightedCode = highlight(newPlainText)
-            translation.prettifiedCode = highlightedCode
-            await saveToDatabase()
+            await saveToDatabase(translatedCode: newPlainText, prettifiedCode: highlightedCode)
           }
         }
       }
   }
   
-  func saveToDatabase() async {
-    let id = translation.id
-    let translatedCode = translation.translatedCode
-    let prettifiedCode = translation.prettifiedCode
-    
+  func saveToDatabase(translatedCode: String, prettifiedCode: AttributedString) async {
     await withErrorReporting {
       try await database.write { db in
         try Translation
-          .find(id)
+          .find(translationID)
           .update {
             $0.translatedCode = translatedCode
             $0.prettifiedCode = prettifiedCode

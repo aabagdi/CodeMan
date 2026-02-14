@@ -6,9 +6,12 @@
 //
 
 import SwiftUI
+import SQLiteData
 
 struct CodeEditAndExecutionView: View {
-  @Binding var translation: Translation
+  let translationID: Translation.ID
+  
+  @FetchOne var translation: Translation?
   
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -16,6 +19,11 @@ struct CodeEditAndExecutionView: View {
   @State private var executionResult: PythonRunner.ExecutionResult?
   @State private var isRunning = false
   @State private var pythonVersion: String?
+  
+  init(translationID: Translation.ID) {
+    self.translationID = translationID
+    _translation = FetchOne(Translation.find(translationID))
+  }
   
   private var hasError: Bool {
     executionResult?.isError == true
@@ -38,10 +46,12 @@ struct CodeEditAndExecutionView: View {
   
   var body: some View {
     Group {
-      if isLandscapePhone {
-        landscapeLayout
-      } else {
-        portraitLayout
+      if translation != nil {
+        if isLandscapePhone {
+          landscapeLayout
+        } else {
+          portraitLayout
+        }
       }
     }
     .navigationTitle("Edit & Run")
@@ -53,7 +63,7 @@ struct CodeEditAndExecutionView: View {
   
   private var portraitLayout: some View {
     VStack(spacing: 0) {
-      CodeEditorView(translation: $translation)
+      CodeEditorView(translationID: translationID)
       
       Divider()
       
@@ -75,7 +85,7 @@ struct CodeEditAndExecutionView: View {
   
   private var landscapeLayout: some View {
     HStack(spacing: 0) {
-      CodeEditorView(translation: $translation)
+      CodeEditorView(translationID: translationID)
         .frame(maxWidth: .infinity)
       
       Divider()
@@ -113,7 +123,7 @@ struct CodeEditAndExecutionView: View {
   }
   
   func runCode() {
-    guard let code = translation.translatedCode, !code.isEmpty else {
+    guard let code = translation?.translatedCode, !code.isEmpty else {
       executionResult = PythonRunner.ExecutionResult(output: "No code to run", isError: true)
       return
     }

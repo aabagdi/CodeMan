@@ -31,6 +31,7 @@ final class RecognitionViewModel {
   var isShowingNameDialog: Bool = false
   var isTranslating: Bool = false
   var showingTranslationError: Bool = false
+  var showingSameNameExistsError: Bool = false
   
   var observations: [VNRecognizedTextObservation] {
     recognizer.observations
@@ -106,22 +107,33 @@ final class RecognitionViewModel {
     showingTranslationError = false
   }
   
-  func saveCode(image: PhotoData?) throws {
-    let translation = Translation(
-      id: self.uuid(),
-      title: codeTitle,
-      image: image?.imageData,
-      originalText: recognizer.fullCodeBlock,
-      translatedCode: translatedCode,
-      prettifiedCode: prettifiedCode
-    )
+  func saveCode(image: PhotoData?) throws -> Bool {
+    let exists = try database.read { db in
+      try Translation.where { $0.title.eq(codeTitle) }.fetchCount(db) > 0
+    }
     
-    withErrorReporting {
-      try database.write { db in
-        try Translation
-          .insert { translation }
-          .execute(db)
+    if !exists {
+      let translation = Translation(
+        id: self.uuid(),
+        title: codeTitle,
+        image: image?.imageData,
+        originalText: recognizer.fullCodeBlock,
+        translatedCode: translatedCode,
+        prettifiedCode: prettifiedCode
+      )
+      
+      withErrorReporting {
+        try database.write { db in
+          try Translation
+            .insert { translation }
+            .execute(db)
+        }
       }
+      
+      return true
+    } else {
+      showingSameNameExistsError = true
+      return false
     }
   }
   

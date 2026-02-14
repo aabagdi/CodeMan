@@ -12,6 +12,7 @@ struct RecognitionView: View {
   @Binding var navigationPath: NavigationPath
   
   @State private var viewModel = RecognitionViewModel()
+  @State private var showingSaveError: Bool = false
   
   var body: some View {
     ScrollView {
@@ -86,11 +87,28 @@ struct RecognitionView: View {
       TextField("Name", text: $viewModel.codeTitle)
       
       Button("Save") {
-        try? viewModel.saveCode(image: image)
-        navigationPath = NavigationPath()
+        do {
+          if (try viewModel.saveCode(image: image)) {
+            navigationPath = NavigationPath()
+          }
+        } catch {
+          showingSaveError = true
+        }
       }
       
       Button("Cancel", role: .cancel) { }
+    }
+    .alert("Save error! Please try again.",
+           isPresented: $showingSaveError) {
+      Button("OK") {
+        showingSaveError = false
+      }
+    }
+    .alert("Translation with the same name already exists!",
+           isPresented: $viewModel.showingSameNameExistsError) {
+      Button("OK") {
+        viewModel.showingSameNameExistsError = false
+      }
     }
     .alert("Translation Error. Please try taking another photo.",
            isPresented: $viewModel.showingTranslationError) {
