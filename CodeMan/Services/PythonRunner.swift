@@ -124,8 +124,11 @@ final class PythonRunner {
                     try:
                         if isinstance(node.op, ast.Pow):
                             # Limit exponent to prevent hanging on huge numbers
-                            if right > 20:
+                            # Also check if base is greater than max and power is greater than 1
+                            if right > 20 or (left >= _MAX_LITERAL_NUMBER and right > 1):
                                 return float('inf')  # Signal "too big"
+                            elif right < -20:  # Check if exponent is a large negative number
+                                return 0.0
                             return left ** right
                         elif isinstance(node.op, ast.Mult):
                             return left * right
