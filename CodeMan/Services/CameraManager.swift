@@ -24,10 +24,29 @@ actor CameraManager: NSObject {
     case portraitUpsideDown = 270
     case landscapeRight = 180
     case landscapeLeft = 0
+    
+    init(from deviceOrientation: UIDeviceOrientation) {
+      switch deviceOrientation {
+      case .landscapeLeft:
+        self = .landscapeLeft
+      case .landscapeRight:
+        self = .landscapeRight
+      case .portraitUpsideDown:
+        self = .portraitUpsideDown
+      default:
+        self = .portrait
+      }
+    }
   }
   
   var isRunning: Bool {
     session.isRunning
+  }
+  
+  nonisolated(unsafe) private var _currentDeviceOrientation: UIDeviceOrientation = .portrait
+  
+  func updateDeviceOrientation(_ orientation: UIDeviceOrientation) {
+    _currentDeviceOrientation = orientation
   }
   
   private let photoStreamContinuation: AsyncStream<AVCapturePhoto>.Continuation
@@ -127,7 +146,8 @@ actor CameraManager: NSObject {
     photoSettings.photoQualityPrioritization = .quality
     
     if let photoOutputVideoConnection = photoOutput.connection(with: .video) {
-      photoOutputVideoConnection.videoRotationAngle = RotationAngle.portrait.rawValue
+      let rotationAngle = RotationAngle(from: _currentDeviceOrientation)
+      photoOutputVideoConnection.videoRotationAngle = rotationAngle.rawValue
     }
     
     photoOutput.capturePhoto(with: photoSettings, delegate: self)

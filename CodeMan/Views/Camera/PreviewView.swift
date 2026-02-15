@@ -15,28 +15,77 @@ struct PreviewView: View {
   @State private var focusLocation: CGPoint?
   @State private var showFocusIndicator = false
   @State private var isCapturing = false
+  @State private var deviceOrientation: UIDeviceOrientation = .portrait
   
   var body: some View {
     GeometryReader { geometry in
-      ImageView(image: model.previewImage)
-        .frame(width: geometry.size.width, height: geometry.size.height)
-        .overlay {
-          if showFocusIndicator, let location = focusLocation {
-            FocusIndicator()
-              .position(location)
-          }
+      ZStack {
+        CameraPreviewImage(image: model.previewImage, orientation: deviceOrientation)
+          .frame(width: previewSize(for: geometry.size).width,
+                 height: previewSize(for: geometry.size).height)
+          .rotationEffect(previewRotationAngle)
+          .frame(width: geometry.size.width, height: geometry.size.height)
+          .clipped()
+        
+        if showFocusIndicator, let location = focusLocation {
+          FocusIndicator()
+            .position(location)
         }
-        .overlay(alignment: .bottom) {
-          buttonsView()
-            .frame(height: footerHeight)
-            .padding(.bottom, 40)
-        }
-        .contentShape(Rectangle())
-        .onTapGesture { location in
-          handleTapToFocus(at: location, in: geometry.size)
-        }
+      }
+      .overlay(alignment: .bottom) {
+        buttonsView()
+          .frame(height: footerHeight)
+          .padding(.bottom, 40)
+      }
+      .contentShape(Rectangle())
+      .onTapGesture { location in
+        handleTapToFocus(at: location, in: geometry.size)
+      }
     }
     .ignoresSafeArea()
+    .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+      let newOrientation = UIDevice.current.orientation
+      if newOrientation.isValidInterfaceOrientation {
+        withAnimation(.easeInOut(duration: 0.3)) {
+          deviceOrientation = newOrientation
+        }
+        Task {
+          await model.camera.updateDeviceOrientation(newOrientation)
+        }
+      }
+    }
+    .onAppear {
+      UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+      let currentOrientation = UIDevice.current.orientation
+      if currentOrientation.isValidInterfaceOrientation {
+        deviceOrientation = currentOrientation
+        Task {
+          await model.camera.updateDeviceOrientation(currentOrientation)
+        }
+      }
+    }
+  }
+  
+  private var previewRotationAngle: Angle {
+    switch deviceOrientation {
+    case .landscapeLeft:
+      return .degrees(-90)
+    case .landscapeRight:
+      return .degrees(90)
+    case .portraitUpsideDown:
+      return .degrees(180)
+    default:
+      return .degrees(0)
+    }
+  }
+  
+  private func previewSize(for containerSize: CGSize) -> CGSize {
+    switch deviceOrientation {
+    case .landscapeLeft, .landscapeRight:
+      return CGSize(width: containerSize.height, height: containerSize.width)
+    default:
+      return containerSize
+    }
   }
   
   private func handleTapToFocus(at location: CGPoint, in size: CGSize) {
@@ -99,5 +148,31 @@ struct FocusIndicator: View {
         .frame(width: 90, height: 90)
     }
     .transition(.scale.combined(with: .opacity))
+  }
+}
+
+private struct CameraPreviewImage: View {
+  let image: Image?
+  let orientation: UIDeviceOrientation
+  
+  var body: some View {
+    if let image {
+      image
+        .resizable()
+        .aspectRatio(contentMode: .fill)
+    } else {
+      Color.black
+    }
+  }
+}
+
+private extension UIDeviceOrientation {
+  var isValidInterfaceOrientation: Bool {
+    switch self {
+    case .portrait, .portraitUpsideDown, .landscapeLeft, .landscapeRight:
+      return true
+    default:
+      return false
+    }
   }
 }

@@ -6,7 +6,5 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
-	<key>UIRequiresFullScreen</key>
-	<true/>
 </dict>
 </plist>
