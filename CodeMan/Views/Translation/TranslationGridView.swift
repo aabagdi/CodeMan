@@ -35,13 +35,18 @@ struct TranslationGridView: View {
               .id(cameraID)
           case .recognition(let photoData):
             RecognitionView(image: photoData, navigationPath: $navigationPath)
+          case .algorithmGenerator:
+            AlgorithmSearchView(navigationPath: $navigationPath)
           }
         }
-        .navigationTitle("Captured algorithms")
+        .navigationTitle("Algorithms")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
           ToolbarItem(placement: .topBarLeading) {
-            addButton
+            HStack {
+              addButton
+              generateButton
+            }
           }
           ToolbarItem(placement: .topBarTrailing) {
             creditsButton
@@ -140,6 +145,15 @@ struct TranslationGridView: View {
       .disabled(inDeletionMode)
     }
     
+    private var generateButton: some View {
+      Button {
+        navigationPath.append(CameraNavigation.algorithmGenerator)
+      } label: {
+        Image(systemName: "wand.and.stars")
+      }
+      .disabled(inDeletionMode)
+    }
+    
     private var creditsButton: some View {
       NavigationLink(destination: CreditsView()) {
         Text("Credits")
@@ -151,4 +165,5 @@ struct TranslationGridView: View {
 enum CameraNavigation: Hashable {
   case camera
   case recognition(PhotoData)
+  case algorithmGenerator
 }

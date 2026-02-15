@@ -76,6 +76,8 @@ actor TranslationSessionManager {
            8. For graph/tree algorithms: Use ONE consistent approach - either all methods inside a class, OR all standalone functions. Never mix both with shared state.
            9. MANDATORY OUTPUT: The code MUST produce visible output using print(). If the algorithm computes a result, print it. If it modifies data, print the result. NEVER return a value without also printing it. Users cannot see return values - only print() output is visible.
            10. MANDATORY COMPLEXITY COMMENT: You MUST add a comment at the very end of the code documenting the time complexity (Big O) and space complexity. Format: # Time: O(...), Space: O(...). This is REQUIRED for ALL code, not optional. You MUST include both average and worst case time complexity if applicable.
+           11. CORRECTNESS IS PARAMOUNT: The example MUST produce correct output. If an algorithm has preconditions (like binary search requiring sorted input), the example data MUST satisfy those preconditions.
+           12. NEVER include "# Output:" comments or any comments showing expected output. The code ends after the last print() statement and the complexity comment. Nothing else.
            
            EXAMPLE DATA PROVISION (MANDATORY FOR KNOWN ALGORITHMS):
            - If the code implements a well-known algorithm (sorting, searching, tree traversal, etc.) 
@@ -85,6 +87,7 @@ actor TranslationSessionManager {
              and any other recognizable standard algorithm
            - Keep example data minimal but representative:
              * Sorting algorithms → add unsorted array: arr = [64, 34, 25, 12, 22, 11, 90]
+             * Selection algorithms (quickselect, k-th smallest/largest) → add array and k value: arr = [3, 2, 1, 5, 4, 6]; k = 2
              * Binary search → add sorted array AND target: arr = [1, 3, 5, 7, 9, 11, 13]; target = 7
              * Linear search → add array AND target: arr = [10, 20, 30, 40, 50]; target = 30
              * Tree algorithms → add simple tree structure with complete Node class (define ALL properties in __init__)
@@ -211,6 +214,12 @@ actor TranslationSessionManager {
        "\n\n[IMPORTANT: Add example data - an unsorted array like [64, 34, 25, 12, 22, 11, 90], then call the function and print the result]"),
       (["heap", "sort"],
        "\n\n[IMPORTANT: Add example data - an unsorted array like [64, 34, 25, 12, 22, 11, 90], then call the function and print the result]"),
+      (["quickselect"],
+       "\n\n[IMPORTANT: Add example data - an unsorted array like [3, 2, 1, 5, 4, 6] and k = 2 (to find 2nd smallest), then call the function and print the result. Use random.randint(left, right) for pivot selection, NOT floor() or random.rand().]"),
+      (["kth", "smallest"],
+       "\n\n[IMPORTANT: Add example data - an unsorted array like [3, 2, 1, 5, 4, 6] and k = 2 (to find 2nd smallest), then call the function and print the result. Use random.randint(left, right) for pivot selection, NOT floor() or random.rand().]"),
+      (["kth", "largest"],
+       "\n\n[IMPORTANT: Add example data - an unsorted array like [3, 2, 1, 5, 4, 6] and k = 2 (to find 2nd largest), then call the function and print the result. Use random.randint(left, right) for pivot selection, NOT floor() or random.rand().]"),
       (["fibonacci"],
        "\n\n[IMPORTANT: Add example - call the function with n = 10 and print the result]"),
       (["factorial"],

@@ -610,8 +610,15 @@ final class PythonRunner {
         'bytes': _safe_bytes,
         'bytearray': _safe_bytearray,
     
-        # Classes
+        # Classes & Type Checking
         '__build_class__': __build_class__,
+        'isinstance': isinstance,
+        'issubclass': issubclass,
+        'type': type,
+        'callable': callable,
+        'staticmethod': staticmethod,
+        'classmethod': classmethod,
+        'property': property,
         
         # Iteration
         'iter': iter,
@@ -630,6 +637,25 @@ final class PythonRunner {
         'True': True,
         'False': False,
         'None': None,
+        
+        # Exceptions
+        'Exception': Exception,
+        'BaseException': BaseException,
+        'ValueError': ValueError,
+        'TypeError': TypeError,
+        'IndexError': IndexError,
+        'KeyError': KeyError,
+        'AttributeError': AttributeError,
+        'ZeroDivisionError': ZeroDivisionError,
+        'RuntimeError': RuntimeError,
+        'StopIteration': StopIteration,
+        'OverflowError': OverflowError,
+        'MemoryError': MemoryError,
+        'RecursionError': RecursionError,
+        'ArithmeticError': ArithmeticError,
+        'LookupError': LookupError,
+        'AssertionError': AssertionError,
+        'NotImplementedError': NotImplementedError,
     }
     
     # Allowed modules whitelist
