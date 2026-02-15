@@ -131,7 +131,7 @@ struct AlgorithmSearchView: View {
     }
     .padding()
     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-    .intelligenceOverlay(in: RoundedRectangle(cornerRadius: 16))
+    .intelligenceBackground(in: RoundedRectangle(cornerRadius: 16))
   }
   
   private var unavailableView: some View {

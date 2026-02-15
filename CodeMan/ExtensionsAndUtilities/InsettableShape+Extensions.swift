@@ -11,7 +11,7 @@ import SwiftUI
 extension InsettableShape {
   @MainActor
   func intelligenceStroke(
-    lineWidths: [CGFloat] = [2, 4, 6, 8],
+    lineWidths: [CGFloat] = [3, 5, 7, 9],
     blurs: [CGFloat] = [2, 8, 16, 20],
     updateInterval: TimeInterval = 0.4,
     animationDurations: [TimeInterval] = [1.2, 1.5, 2.0, 2.3],

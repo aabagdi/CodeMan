@@ -17,13 +17,4 @@ extension View {
       shape.intelligenceStroke()
     )
   }
-  
-  @MainActor
-  func intelligenceOverlay<S: InsettableShape>(
-    in shape: S
-  ) -> some View {
-    overlay(
-      shape.intelligenceStroke()
-    )
-  }
 }
