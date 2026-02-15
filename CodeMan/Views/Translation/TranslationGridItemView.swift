@@ -22,7 +22,7 @@ struct TranslationGridItemView: View {
           .clipped()
           .clipShape(RoundedRectangle(cornerRadius: 5))
       } else {
-        Image(systemName: "questionmark.text.page")
+        Image(systemName: "chevron.left.forwardslash.chevron.right")
           .font(.system(size: size * 0.4))
           .frame(width: size, height: size)
           .background(Color.gray.opacity(0.2))

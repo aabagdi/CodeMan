@@ -17,7 +17,7 @@ struct AlgorithmSearchView: View {
   
   var body: some View {
     ScrollView {
-      VStack(spacing: 16) {
+      VStack(spacing: 24) {
         promptSection
         
         if viewModel.modelUnavailable {
@@ -32,7 +32,7 @@ struct AlgorithmSearchView: View {
       }
       .padding()
     }
-    .navigationTitle("Generate algorithm")
+    .navigationTitle("Generate Algorithm")
     .navigationBarTitleDisplayMode(.inline)
     .sensoryFeedback(.success, trigger: viewModel.hasGeneratedCode)
     .toolbar {
@@ -96,30 +96,42 @@ struct AlgorithmSearchView: View {
   }
   
   private var promptSection: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Text("Describe the algorithm you want:")
-        .font(.headline)
+    VStack(alignment: .leading, spacing: 16) {
+      HStack {
+        Image(systemName: "wand.and.stars")
+          .font(.title2)
+          .foregroundStyle(.tint)
+        Text("Describe your algorithm")
+          .font(.title3.bold())
+      }
       
-      TextField("e.g., binary search, merge sort, BFS traversal...", text: $viewModel.searchText, axis: .vertical)
-        .textFieldStyle(.roundedBorder)
+      TextField("e.g., merge sort, BFS traversal...", text: $viewModel.searchText, axis: .vertical)
+        .textFieldStyle(.plain)
         .lineLimit(3...6)
         .disabled(viewModel.isGenerating)
+        .padding()
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
       
       Button {
         Task {
           await viewModel.generateAlgorithm(colorScheme: colorScheme)
         }
       } label: {
-        HStack {
-          Image(systemName: "wand.and.stars")
+        HStack(spacing: 8) {
+          Image(systemName: "sparkles")
           Text("Generate Python Code")
+            .fontWeight(.semibold)
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
       }
       .buttonStyle(.borderedProminent)
       .glassEffect()
       .disabled(!viewModel.canGenerate || viewModel.modelUnavailable)
     }
+    .padding()
+    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+    .intelligenceOverlay(in: RoundedRectangle(cornerRadius: 16))
   }
   
   private var unavailableView: some View {
@@ -128,59 +140,95 @@ struct AlgorithmSearchView: View {
     } description: {
       Text("The on-device AI model is not available. Make sure Apple Intelligence is enabled in Settings and your device supports it.")
     }
+    .padding()
+    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
   }
   
   private var generatingView: some View {
-    VStack(spacing: 12) {
+    VStack(spacing: 16) {
       ProgressView()
         .scaleEffect(1.5)
+        .tint(.accentColor)
+      
       Text("Generating algorithm...")
+        .font(.headline)
         .foregroundStyle(.secondary)
+      
+      Text("Using on-device AI")
+        .font(.caption)
+        .foregroundStyle(.tertiary)
     }
-    .padding(.vertical, 40)
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, 48)
+    .padding(.horizontal)
+    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
   }
   
   private var instructionsView: some View {
-    VStack(spacing: 16) {
-      Image(systemName: "text.badge.plus")
-        .font(.system(size: 48))
-        .foregroundStyle(.secondary)
-      
-      Text("Enter an algorithm name or description above, then tap Generate to create Python code.")
-        .multilineTextAlignment(.center)
-        .foregroundStyle(.secondary)
-      
-      VStack(alignment: .leading, spacing: 8) {
-        Text("Examples:")
-          .font(.subheadline.bold())
+    VStack(spacing: 20) {
+      VStack(spacing: 12) {
+        Image(systemName: "chevron.left.forwardslash.chevron.right")
+          .font(.system(size: 44, weight: .light))
+          .foregroundStyle(.tint)
         
-        exampleChip("Binary search")
-        exampleChip("Bubble sort")
-        exampleChip("Depth-first search on a graph")
-        exampleChip("Find the nth Fibonacci number")
+        Text("Create Python algorithms instantly")
+          .font(.headline)
+        
+        Text("Describe what you need and let AI generate the code for you.")
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .multilineTextAlignment(.center)
       }
-      .padding()
-      .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+      
+      VStack(alignment: .leading, spacing: 12) {
+        Text("Try an example")
+          .font(.subheadline.bold())
+          .foregroundStyle(.secondary)
+        
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+          exampleChip("Binary search", icon: "magnifyingglass")
+          exampleChip("Bubble sort", icon: "arrow.up.arrow.down")
+          exampleChip("DFS traversal", icon: "point.3.connected.trianglepath.dotted")
+          exampleChip("Fibonacci", icon: "number")
+        }
+      }
     }
-    .padding(.vertical, 20)
+    .padding()
+    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
   }
   
-  private func exampleChip(_ text: String) -> some View {
+  private func exampleChip(_ text: String, icon: String) -> some View {
     Button {
-      viewModel.searchText = text
-    } label: {
-      HStack {
-        Image(systemName: "arrow.right.circle.fill")
-          .foregroundStyle(.secondary)
-        Text(text)
+      withAnimation(.easeInOut(duration: 0.2)) {
+        viewModel.searchText = text
       }
+    } label: {
+      HStack(spacing: 6) {
+        Image(systemName: icon)
+          .font(.caption)
+          .foregroundStyle(.tint)
+        Text(text)
+          .font(.subheadline)
+          .lineLimit(1)
+      }
+      .frame(maxWidth: .infinity)
+      .padding(.vertical, 10)
+      .padding(.horizontal, 12)
+      .background(.tint.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
     }
     .buttonStyle(.plain)
   }
   
   private var resultSection: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Divider()
+    VStack(alignment: .leading, spacing: 16) {
+      HStack {
+        Image(systemName: "checkmark.circle.fill")
+          .foregroundStyle(.green)
+        Text("Algorithm Generated")
+          .font(.headline)
+        Spacer()
+      }
+      .padding(.horizontal)
       
       CodeBlockView(
         title: "Generated Python:",
@@ -188,5 +236,7 @@ struct AlgorithmSearchView: View {
         backgroundColor: .green
       )
     }
+    .padding(.vertical)
+    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
   }
 }
