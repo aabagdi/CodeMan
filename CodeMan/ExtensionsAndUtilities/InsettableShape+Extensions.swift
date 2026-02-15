@@ -13,7 +13,7 @@ extension InsettableShape {
   func intelligenceStroke(
     lineWidths: [CGFloat] = [3, 5, 7, 9],
     blurs: [CGFloat] = [2, 8, 16, 20],
-    updateInterval: TimeInterval = 0.4,
+    updateInterval: TimeInterval = 3.0,
     animationDurations: [TimeInterval] = [1.2, 1.5, 2.0, 2.3],
     gradientGenerator: @MainActor @Sendable @escaping () -> [Gradient.Stop] = { .intelligenceStyle }
   ) -> some View {
