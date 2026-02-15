@@ -56,35 +56,27 @@ final class RecognitionViewModel {
       await translateAllText(colorScheme: colorScheme)
     } catch {
       showingTranslationError = true
-      print("Recognition failed: \(error)")
     }
   }
   
   func translateAllText(colorScheme: ColorScheme) async {
-    guard hasCodeToTranslate else {
-      print("No code to translate")
-      return
-    }
+    guard hasCodeToTranslate else { return }
     
     isTranslating = true
     
     do {
-      print("Translating entire code block:\n\(recognizer.fullCodeBlock)")
       let translated = try await translator.translate(recognizer.fullCodeBlock)
       
       if translated.isEmpty || translated == "NOT_CODE" {
-        print("AI filtered out the code block")
         translatedCode = ""
       } else {
-        let cleanedCode = stripMarkdownCodeBlocks(from: translated)
+        let cleanedCode = translated.strippingMarkdownCodeBlocks()
         
         translatedCode = cleanedCode
         
         prettifiedCode = CodeHighlighter.shared.highlight(cleanedCode, colorScheme: colorScheme)
-        print("Translation complete:\n\(cleanedCode)")
       }
     } catch {
-      print("Translation error: \(error)")
       translationError = error.localizedDescription
       showingTranslationError = true
       translatedCode = ""
@@ -130,20 +122,5 @@ final class RecognitionViewModel {
       showingSameNameExistsError = true
       return false
     }
-  }
-  
-  private func stripMarkdownCodeBlocks(from text: String) -> String {
-    var result = text
-    
-    // Remove opening code fence at start (```python, ```swift, etc.)
-    result = result.replacing(/^```\w*\n?/, with: "")
-    
-    // Remove closing code fence at end (``` or ```python, etc.)
-    result = result.replacing(/\n?```\w*$/, with: "")
-    
-    // Remove any standalone code fence lines (with or without language)
-    result = result.replacing(/(?m)^```\w*\s*$/, with: "")
-    
-    return result.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 }

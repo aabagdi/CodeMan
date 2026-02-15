@@ -14,11 +14,7 @@ struct DeleteButtonView: View {
   
   var body: some View {
     Button {
-      do {
-        try onTap()
-      } catch {
-        print("Deletion error: \(error)")
-      }
+      try? onTap()
     } label: {
       Image(systemName: "minus.circle.fill")
     }

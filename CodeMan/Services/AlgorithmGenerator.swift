@@ -13,7 +13,6 @@ actor AlgorithmGenerator {
   
   init() {
     guard SystemLanguageModel.default.supportsLocale() else {
-      print("Warning: Current locale is not supported by Apple Intelligence")
       session = nil
       return
     }
@@ -88,22 +87,11 @@ actor AlgorithmGenerator {
     let result = try await session.respond(to: enhancedPrompt)
     let content = result.content.trimmingCharacters(in: .whitespacesAndNewlines)
     
-    return stripMarkdownCodeBlocks(from: content)
+    return content.strippingMarkdownCodeBlocks()
   }
   
   private func stripMarkdownCodeBlocks(from text: String) -> String {
-    var result = text
-    
-    // Remove opening code fence at start (```python, ```swift, etc.)
-    result = result.replacing(/^```\w*\n?/, with: "")
-    
-    // Remove closing code fence at end (``` or ```python, etc.)
-    result = result.replacing(/\n?```\w*$/, with: "")
-    
-    // Remove any standalone code fence lines (with or without language)
-    result = result.replacing(/(?m)^```\w*\s*$/, with: "")
-    
-    return stripOutputComments(from: result.trimmingCharacters(in: .whitespacesAndNewlines))
+    return stripOutputComments(from: text.strippingMarkdownCodeBlocks())
   }
   
   private func stripOutputComments(from text: String) -> String {
@@ -111,7 +99,7 @@ actor AlgorithmGenerator {
     
     result = result.replacing(/(?s)\n*#\s*Output:.*$/, with: "")
     
-    result = result.replacing(/(?s)\n*#\s*Expected\s*[Oo]utput:.*$/, with: "")
+    result = result.replacing(/(?s)\n*#\s*([Ee]xpected\s+)?[Oo]utput:.*$/, with: "")
     
     return result.trimmingCharacters(in: .whitespacesAndNewlines)
   }

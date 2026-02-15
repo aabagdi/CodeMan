@@ -17,21 +17,6 @@ actor CameraManager: NSObject {
   private var photoOutput: AVCapturePhotoOutput?
   private var videoOutput: AVCaptureVideoDataOutput?
   
-  private var allCaptureDevices: [AVCaptureDevice] {
-    AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInTrueDepthCamera, .builtInDualCamera, .builtInDualWideCamera, .builtInWideAngleCamera, .builtInDualWideCamera], mediaType: .video, position: .unspecified).devices
-  }
-  
-  private var backCaptureDevices: [AVCaptureDevice] {
-    allCaptureDevices
-      .filter { $0.position == .back }
-  }
-  
-  private var availableDevices: [AVCaptureDevice] {
-    backCaptureDevices
-      .filter { $0.isConnected }
-      .filter { !$0.isSuspended }
-  }
-  
   private var captureDevice: AVCaptureDevice?
   
   private enum RotationAngle: CGFloat {
@@ -83,7 +68,7 @@ actor CameraManager: NSObject {
   
   private func ensureCaptureDevice() {
     if captureDevice == nil {
-      captureDevice = availableDevices.first ?? AVCaptureDevice.default(for: .video)
+      captureDevice = AVCaptureDevice.default(for: .video)
     }
   }
   
@@ -170,20 +155,7 @@ actor CameraManager: NSObject {
       
       device.unlockForConfiguration()
     } catch {
-      print("Could not lock device for configuration: \(error)")
       throw error
-    }
-  }
-  
-  private func deviceInputFor(device: AVCaptureDevice?) throws -> AVCaptureDeviceInput {
-    guard let device else {
-      throw CameraError.deviceNotAvailable
-    }
-    
-    do {
-      return try AVCaptureDeviceInput(device: device)
-    } catch {
-      throw CameraError.deviceInputFailed
     }
   }
   
@@ -199,8 +171,6 @@ actor CameraManager: NSObject {
     defer {
       self.session.commitConfiguration()
     }
-    
-    let movieFileOutput = AVCaptureMovieFileOutput()
     
     let photoOutput = AVCapturePhotoOutput()
     session.sessionPreset = AVCaptureSession.Preset.photo
@@ -221,7 +191,6 @@ actor CameraManager: NSObject {
     session.addInput(deviceInput)
     session.addOutput(photoOutput)
     session.addOutput(videoOutput)
-    session.addOutput(movieFileOutput)
     
     self.deviceInput = deviceInput
     self.photoOutput = photoOutput
@@ -237,16 +206,12 @@ actor CameraManager: NSObject {
   private func checkAuthorization() async -> Bool {
     switch AVCaptureDevice.authorizationStatus(for: .video) {
     case .authorized:
-      print("Camera access authorized.")
       return true
     case .notDetermined:
-      print("Camera access not determined.")
       return await AVCaptureDevice.requestAccess(for: .video)
     case .denied:
-      print("Camera access denied.")
       return false
     case .restricted:
-      print("Camera library access restricted.")
       return false
     default:
       return false
@@ -266,10 +231,7 @@ actor CameraManager: NSObject {
 extension CameraManager: @preconcurrency AVCapturePhotoCaptureDelegate {
   nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
     
-    if let error {
-      print("Error capturing photo: \(error.localizedDescription)")
-      return
-    }
+    if error != nil { return }
     
     photoStreamContinuation.yield(photo)
     onPhotoCaptured?(photo)

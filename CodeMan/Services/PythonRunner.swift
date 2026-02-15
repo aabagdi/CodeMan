@@ -28,8 +28,6 @@ final class PythonRunner {
     
     Py_Initialize()
     isInitialized = true
-    
-    print("Python initialized: \(Py_IsInitialized() != 0)")
   }
   
   func getVersion() -> String {

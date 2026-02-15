@@ -231,27 +231,14 @@ struct ImageCropperView: View {
   }
   
   private func cropImage() {
-    guard let normalizedImage = cachedRotatedImage else {
-      print("Failed to create rotated UIImage from data")
-      return
-    }
-    
-    guard let cgImage = normalizedImage.cgImage else {
-      print("Failed to get CGImage")
-      return
-    }
+    guard let normalizedImage = cachedRotatedImage else { return }
+    guard let cgImage = normalizedImage.cgImage else { return }
     
     let displayedSize = imageFrame.size
     let actualSize = CGSize(width: cgImage.width, height: cgImage.height)
     
-    print("Display size: \(displayedSize)")
-    print("Actual image size: \(actualSize)")
-    print("Selection rect: \(selectionRect)")
-    
     let aspectRatio = actualSize.width / actualSize.height
     let displayAspect = displayedSize.width / displayedSize.height
-    
-    print("Aspect ratio: \(aspectRatio), Display aspect: \(displayAspect)")
     
     var actualImageFrame = CGRect(origin: .zero, size: displayedSize)
     if displayAspect > aspectRatio {
@@ -272,17 +259,12 @@ struct ImageCropperView: View {
       )
     }
     
-    print("Actual image frame: \(actualImageFrame)")
-    print("Actual image frame: \(actualImageFrame)")
-    
     let relativeRect = CGRect(
       x: (selectionRect.minX - actualImageFrame.minX) / actualImageFrame.width,
       y: (selectionRect.minY - actualImageFrame.minY) / actualImageFrame.height,
       width: selectionRect.width / actualImageFrame.width,
       height: selectionRect.height / actualImageFrame.height
     )
-    
-    print("Relative rect: \(relativeRect)")
     
     let clampedRect = CGRect(
       x: max(0, min(1, relativeRect.origin.x)),
@@ -291,8 +273,6 @@ struct ImageCropperView: View {
       height: max(0, min(1 - relativeRect.origin.y, relativeRect.height))
     )
     
-    print("Clamped rect: \(clampedRect)")
-    
     let cropRect = CGRect(
       x: clampedRect.origin.x * actualSize.width,
       y: clampedRect.origin.y * actualSize.height,
@@ -300,14 +280,7 @@ struct ImageCropperView: View {
       height: clampedRect.height * actualSize.height
     )
     
-    print("Final crop rect: \(cropRect)")
-    
-    guard let croppedCGImage = cgImage.cropping(to: cropRect) else {
-      print("Failed to crop image")
-      return
-    }
-    
-    print("Successfully cropped image")
+    guard let croppedCGImage = cgImage.cropping(to: cropRect) else { return }
     
     let croppedUIImage = UIImage(cgImage: croppedCGImage)
     

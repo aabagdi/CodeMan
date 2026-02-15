@@ -85,11 +85,7 @@ class CameraModel {
   }
   
   func focusCamera(at point: CGPoint) async {
-    do {
-      try await camera.setFocusPoint(point)
-    } catch {
-      print("Failed to set focus point: \(error)")
-    }
+    try? await camera.setFocusPoint(point)
   }
 }
 
