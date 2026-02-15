@@ -127,8 +127,6 @@ final class PythonRunner {
                             # Also check if base is greater than max and power is greater than 1
                             if right > 20 or (left >= _MAX_LITERAL_NUMBER and right > 1):
                                 return float('inf')  # Signal "too big"
-                            elif right < -20:  # Check if exponent is a large negative number
-                                return 0.0
                             return left ** right
                         elif isinstance(node.op, ast.Mult):
                             return left * right
@@ -167,7 +165,7 @@ final class PythonRunner {
                 if func_name == 'pow' and len(args) >= 2:
                     if args[0] is not None and args[1] is not None:
                         try:
-                            if args[1] > 20:
+                            if args[1] > 20 or (args[0] >= _MAX_LITERAL_NUMBER and args[1] > 1):
                                 return float('inf')
                             return pow(args[0], args[1])
                         except:
@@ -177,7 +175,7 @@ final class PythonRunner {
                 if func_name == 'math.pow' and len(args) == 2:
                     if args[0] is not None and args[1] is not None:
                         try:
-                            if args[1] > 20:
+                            if args[1] > 20 or (args[0] >= _MAX_LITERAL_NUMBER and args[1] > 1):
                                 return float('inf')
                             import math
                             return math.pow(args[0], args[1])
