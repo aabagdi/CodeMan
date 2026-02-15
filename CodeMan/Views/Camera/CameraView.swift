@@ -54,12 +54,7 @@ struct CameraView: View {
       latestLibraryImage = await getLatestImage()
     }
     .onAppear {
-      AppDelegate.orientationLock = .portrait
-      
-      if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-         let rootViewController = windowScene.windows.first?.rootViewController {
-        rootViewController.setNeedsUpdateOfSupportedInterfaceOrientations()
-      }
+      lockToPortrait()
     }
     .task {
       try? await Task.sleep(for: .milliseconds(100))
@@ -80,7 +75,7 @@ struct CameraView: View {
         await model.handleCameraPhotos()
       }
       .onDisappear {
-        AppDelegate.orientationLock = .all
+        unlockOrientation()
       }
       .onChange(of: model.photoTaken != nil) { oldValue, newValue in
         Task {
@@ -109,6 +104,29 @@ struct CameraView: View {
         }
       }
       .ignoresSafeArea(.all)
+  }
+  
+  private func lockToPortrait() {
+    AppDelegate.orientationLock = .portrait
+    
+    guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else {
+      return
+    }
+    
+    windowScene.windows.first?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+    
+    let geometryPreferences = UIWindowScene.GeometryPreferences.iOS(interfaceOrientations: .portrait)
+    windowScene.requestGeometryUpdate(geometryPreferences)
+  }
+  
+  private func unlockOrientation() {
+    AppDelegate.orientationLock = .all
+    
+    guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else {
+      return
+    }
+    
+    windowScene.windows.first?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
   }
   
   func getLatestImage(targetSize: CGSize = CGSize(width: 120, height: 120)) async -> UIImage? {
