@@ -10,9 +10,7 @@ import SwiftUI
 import SQLiteData
 
 @main
-struct CodeManApp: App {
-  @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-  
+struct CodeManApp: App {  
   init() {
     PythonRunner.shared.initialize()
     
@@ -26,7 +24,4 @@ struct CodeManApp: App {
       TranslationGridView()
     }
   }
-}
-
-class AppDelegate: NSObject, UIApplicationDelegate {
 }
