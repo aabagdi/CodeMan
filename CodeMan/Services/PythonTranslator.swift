@@ -77,7 +77,9 @@ actor TranslationSessionManager {
            9. MANDATORY OUTPUT: The code MUST produce visible output using print(). If the algorithm computes a result, print it. If it modifies data, print the result. NEVER return a value without also printing it. Users cannot see return values - only print() output is visible.
            10. MANDATORY COMPLEXITY COMMENT: You MUST add a comment at the very end of the code documenting the time complexity (Big O) and space complexity. Format: # Time: O(...), Space: O(...). This is REQUIRED for ALL code, not optional. You MUST include both average and worst case time complexity if applicable.
            11. CORRECTNESS IS PARAMOUNT: The example MUST produce correct output. If an algorithm has preconditions (like binary search requiring sorted input), the example data MUST satisfy those preconditions.
-           12. NEVER include "# Output:" comments or any comments showing expected output. The code ends after the last print() statement and the complexity comment. Nothing else.
+           12. ALWAYS make sure the print() output is clean and human-readable. When printing collections like defaultdict, ALWAYS convert to a regular dict first using dict(). For example: print(dict(my_defaultdict)) instead of print(my_defaultdict). Do NOT use dict() on lists or 2D lists - just print them directly or iterate and print each row.
+           13. NEVER include "# Output:" comments or any comments showing expected output. The code ends after the last print() statement and the complexity comment. Nothing else.
+           14. ONLY import modules that are actually used in the code. Do NOT import unused modules (like json, copy, typing). Use Python 3.9+ built-in generic types (list[int], dict[str, int]) instead of importing from typing. For copying a 2D list, use [row[:] for row in matrix], NOT copy.deepcopy().
            
            EXAMPLE DATA PROVISION (MANDATORY FOR KNOWN ALGORITHMS):
            - If the code implements a well-known algorithm (sorting, searching, tree traversal, etc.) 
@@ -91,7 +93,8 @@ actor TranslationSessionManager {
              * Binary search → add sorted array AND target: arr = [1, 3, 5, 7, 9, 11, 13]; target = 7
              * Linear search → add array AND target: arr = [10, 20, 30, 40, 50]; target = 30
              * Tree algorithms → add simple tree structure with complete Node class (define ALL properties in __init__)
-             * Graph algorithms → add Graph class with __init__ that defines self.graph = defaultdict(list), add_edge method, and example edges. CRITICAL: Every property used in any method MUST be initialized in __init__
+             * Graph traversal algorithms (BFS, DFS, Dijkstra) → use adjacency list with Graph class: self.graph = defaultdict(list), add_edge method, example edges. CRITICAL: Every property used in any method MUST be initialized in __init__
+             * All-pairs shortest path (Floyd-Warshall) → Do NOT use a class or defaultdict. Use only plain 2D lists. Copy with: dist = [row[:] for row in graph]. Return the 2D list directly. Print with: for row in result: print(row). Example: graph = [[0, 3, float('inf'), 7], [8, 0, 2, float('inf')], [5, float('inf'), 0, 1], [2, float('inf'), float('inf'), 0]]
              * Recursive algorithms → add appropriate input value
            - ALWAYS add a print() statement at the end to show the result (this is REQUIRED - users can only see printed output)
            - Do NOT add data only when:
@@ -198,7 +201,7 @@ actor TranslationSessionManager {
     let lowercased = input.lowercased()
     
     let algorithmPatterns: [(keywords: [String], instruction: String)] = [
-      (["binary", "search"], 
+      (["binary", "search"],
        "\n\n[IMPORTANT: Add example data - a sorted array like [1, 3, 5, 7, 9, 11, 13] and target = 7, then call the function and print the result]"),
       (["linear", "search"],
        "\n\n[IMPORTANT: Add example data - an array like [10, 20, 30, 40, 50] and target = 30, then call the function and print the result]"),

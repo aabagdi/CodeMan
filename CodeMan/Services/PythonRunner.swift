@@ -301,6 +301,40 @@ final class PythonRunner {
                     self.errors.append(
                         f"Line {node.lineno}: bytearray() would allocate ~{int(size):,} bytes (max {_MAX_ALLOCATION_SIZE:,})"
                     )
+            
+            # Check math.factorial(big_number)
+            if func_name == 'math.factorial' and len(node.args) == 1:
+                val = self._try_eval_number(node.args[0])
+                if val is not None and val > 10000:
+                    self.errors.append(
+                        f"Line {node.lineno}: math.factorial({int(val)}) is too large (max 10000)"
+                    )
+            
+            # Check math.comb and math.perm
+            if func_name in ('math.comb', 'math.perm') and len(node.args) >= 2:
+                n = self._try_eval_number(node.args[0])
+                if n is not None and n > 10000:
+                    self.errors.append(
+                        f"Line {node.lineno}: {func_name}({int(n)}, ...) is too large (max n=10000)"
+                    )
+            
+            # Check sorted/list/tuple/set wrapping range(big)
+            if func_name in ('sorted', 'list', 'tuple', 'set', 'frozenset'):
+                if len(node.args) >= 1 and isinstance(node.args[0], ast.Call):
+                    inner_func = self._get_func_name(node.args[0])
+                    if inner_func == 'range' and node.args[0].args:
+                        # Get the stop value (last arg for 1-2 args, second arg for 3 args)
+                        range_args = node.args[0].args
+                        if len(range_args) == 1:
+                            size = self._try_eval_number(range_args[0])
+                        else:
+                            start = self._try_eval_number(range_args[0]) or 0
+                            stop = self._try_eval_number(range_args[1])
+                            size = (stop - start) if stop is not None else None
+                        if size is not None and size > _MAX_ALLOCATION_SIZE:
+                            self.errors.append(
+                                f"Line {node.lineno}: {func_name}(range(...)) would create ~{int(size):,} elements (max {_MAX_ALLOCATION_SIZE:,})"
+                            )
                 
             self.generic_visit(node)
         
@@ -341,6 +375,33 @@ final class PythonRunner {
                             self.errors.append(
                                 f"Line {node.lineno}: dict comprehension over range({int(size):,}) would create too many entries"
                             )
+            self.generic_visit(node)
+        
+        def _estimate_string_size(self, node):
+            # Estimate size of a string expression
+            if isinstance(node, ast.Constant) and isinstance(node.value, (str, bytes)):
+                return len(node.value)
+            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mult):
+                left_size = self._estimate_string_size(node.left)
+                right_size = self._estimate_string_size(node.right)
+                left_num = self._try_eval_number(node.left)
+                right_num = self._try_eval_number(node.right)
+                if left_size is not None and right_num is not None:
+                    return left_size * right_num
+                if right_size is not None and left_num is not None:
+                    return right_size * left_num
+            return None
+        
+        def visit_Compare(self, node):
+            # Check for "x" in large_string patterns (CPU-intensive substring search)
+            for i, (op, comparator) in enumerate(zip(node.ops, node.comparators)):
+                if isinstance(op, (ast.In, ast.NotIn)):
+                    # Check the right side (what we're searching in)
+                    str_size = self._estimate_string_size(comparator)
+                    if str_size is not None and str_size > _MAX_ALLOCATION_SIZE:
+                        self.errors.append(
+                            f"Line {node.lineno}: substring search in string of ~{int(str_size):,} chars would be too slow"
+                        )
             self.generic_visit(node)
     
     def check_code_safety(code: str) -> list[str]:
@@ -451,6 +512,20 @@ final class PythonRunner {
         
         def __rmul__(self, n):
             return self.__mul__(n)
+        
+        def join(self, iterable):
+            # Convert to list to check size (also limits infinite iterators)
+            items = _real_list(iterable)
+            if len(items) > _MAX_ALLOCATION_SIZE:
+                raise MemoryError(f"str.join() with {len(items):,} items (max {_MAX_ALLOCATION_SIZE:,})")
+            # Estimate result size
+            total_len = len(self) * (len(items) - 1) if items else 0
+            for item in items:
+                total_len += len(item)
+                if total_len > _MAX_ALLOCATION_SIZE:
+                    raise MemoryError(f"str.join() would create ~{total_len:,}+ characters (max {_MAX_ALLOCATION_SIZE:,})")
+            result = _real_str.join(self, items)
+            return _safe_str(result) if len(result) <= _MAX_ALLOCATION_SIZE else result
     
     # Safe bytes wrapper
     _real_bytes = bytes
@@ -560,6 +635,133 @@ final class PythonRunner {
                 raise MemoryError(f"frozenset() would create {len(result):,} elements (max {_MAX_ALLOCATION_SIZE:,})")
             return result
     
+    # Blocked builtins - these could be used to escape the sandbox
+    def _blocked_eval(*args, **kwargs):
+        raise NameError("'eval' is not allowed in this environment")
+    
+    def _blocked_exec(*args, **kwargs):
+        raise NameError("'exec' is not allowed in this environment")
+    
+    def _blocked_compile(*args, **kwargs):
+        raise NameError("'compile' is not allowed in this environment")
+    
+    def _blocked_open(*args, **kwargs):
+        raise NameError("'open' is not allowed in this environment")
+    
+    def _blocked_input(*args, **kwargs):
+        raise NameError("'input' is not allowed in this environment")
+    
+    def _blocked_breakpoint(*args, **kwargs):
+        raise NameError("'breakpoint' is not allowed in this environment")
+    
+    # Safe attribute access - prevent introspection attacks
+    _dangerous_attrs = {
+        # Class/type introspection
+        '__class__', '__bases__', '__subclasses__', '__mro__',
+        # Code/globals access
+        '__globals__', '__code__', '__builtins__', '__import__',
+        # Module internals
+        '__loader__', '__spec__', '__dict__',
+        # Pickling (can execute arbitrary code)
+        '__reduce__', '__reduce_ex__', '__getstate__', '__setstate__',
+        # Function/method internals
+        '__closure__', '__func__', '__self__', '__wrapped__',
+        # Frame access
+        '__traceback__', 'tb_frame', 'tb_next', 'f_locals', 'f_globals', 'f_code', 'f_back',
+        # Descriptor protocol (can bypass restrictions)
+        '__get__', '__set__', '__delete__',
+    }
+    
+    _real_getattr = getattr
+    def _safe_getattr(obj, name, *default):
+        if isinstance(name, str) and name in _dangerous_attrs:
+            raise AttributeError(f"Access to '{name}' is not allowed")
+        return _real_getattr(obj, name, *default) if default else _real_getattr(obj, name)
+    
+    _real_setattr = setattr
+    def _safe_setattr(obj, name, value):
+        if isinstance(name, str) and name in _dangerous_attrs:
+            raise AttributeError(f"Setting '{name}' is not allowed")
+        _real_setattr(obj, name, value)
+    
+    def _blocked_delattr(*args, **kwargs):
+        raise NameError("'delattr' is not allowed in this environment")
+    
+    def _blocked_vars(*args, **kwargs):
+        raise NameError("'vars' is not allowed in this environment")
+    
+    # Safe type() - only allow inspection, not dynamic class creation
+    _real_type = type
+    def _safe_type(*args):
+        if len(args) == 1:
+            return _real_type(args[0])  # type(x) for inspection is fine
+        raise TypeError("Dynamic class creation with type() is not allowed")
+    
+    # Safe sorted wrapper - checks input size before sorting
+    _real_sorted = sorted
+    def _safe_sorted(iterable, **kwargs):
+        if hasattr(iterable, '__len__'):
+            if len(iterable) > _MAX_ALLOCATION_SIZE:
+                raise MemoryError(f"sorted() input has {len(iterable):,} elements (max {_MAX_ALLOCATION_SIZE:,})")
+        lst = _real_list(iterable)
+        if len(lst) > _MAX_ALLOCATION_SIZE:
+            raise MemoryError(f"sorted() would process {len(lst):,} elements (max {_MAX_ALLOCATION_SIZE:,})")
+        return _safe_list(_real_sorted(lst, **kwargs))
+    
+    # Helper to create a limited iterator that raises after too many iterations
+    def _limited_iter(iterable, limit=_MAX_ALLOCATION_SIZE):
+        count = 0
+        for item in iterable:
+            count += 1
+            if count > limit:
+                raise MemoryError(f"Iterator exceeded {limit:,} elements")
+            yield item
+    
+    # Safe sum wrapper - limits iteration count for generators
+    _real_sum = sum
+    def _safe_sum(iterable, start=0):
+        if hasattr(iterable, '__len__'):
+            if len(iterable) > _MAX_ALLOCATION_SIZE:
+                raise MemoryError(f"sum() input has {len(iterable):,} elements (max {_MAX_ALLOCATION_SIZE:,})")
+            return _real_sum(iterable, start)
+        return _real_sum(_limited_iter(iterable), start)
+    
+    # Safe min/max wrappers - limit iteration count for generators
+    _real_min = min
+    def _safe_min(*args, **kwargs):
+        if len(args) == 1:
+            iterable = args[0]
+            if hasattr(iterable, '__len__'):
+                if len(iterable) > _MAX_ALLOCATION_SIZE:
+                    raise MemoryError(f"min() input has {len(iterable):,} elements (max {_MAX_ALLOCATION_SIZE:,})")
+                return _real_min(iterable, **kwargs)
+            return _real_min(_limited_iter(iterable), **kwargs)
+        return _real_min(*args, **kwargs)
+    
+    _real_max = max
+    def _safe_max(*args, **kwargs):
+        if len(args) == 1:
+            iterable = args[0]
+            if hasattr(iterable, '__len__'):
+                if len(iterable) > _MAX_ALLOCATION_SIZE:
+                    raise MemoryError(f"max() input has {len(iterable):,} elements (max {_MAX_ALLOCATION_SIZE:,})")
+                return _real_max(iterable, **kwargs)
+            return _real_max(_limited_iter(iterable), **kwargs)
+        return _real_max(*args, **kwargs)
+    
+    # Safe any/all wrappers - limit iteration count
+    _real_any = any
+    def _safe_any(iterable):
+        if hasattr(iterable, '__len__'):
+            return _real_any(iterable)
+        return _real_any(_limited_iter(iterable))
+    
+    _real_all = all
+    def _safe_all(iterable):
+        if hasattr(iterable, '__len__'):
+            return _real_all(iterable)
+        return _real_all(_limited_iter(iterable))
+    
     # Store source in linecache so tracebacks can display it
     linecache.cache[_user_filename] = (
         len(_user_code),
@@ -574,9 +776,9 @@ final class PythonRunner {
         'round': round,
         'pow': pow,
         'divmod': divmod,
-        'min': min,
-        'max': max,
-        'sum': sum,
+        'min': _safe_min,
+        'max': _safe_max,
+        'sum': _safe_sum,
         'int': int,
         'float': float,
         'complex': complex,
@@ -600,7 +802,7 @@ final class PythonRunner {
         'set': _safe_set,
         'frozenset': _safe_frozenset,
         'len': len,
-        'sorted': sorted,
+        'sorted': _safe_sorted,
         'reversed': reversed,
         'slice': slice,
         'range': _safe_range,
@@ -613,11 +815,18 @@ final class PythonRunner {
         '__build_class__': __build_class__,
         'isinstance': isinstance,
         'issubclass': issubclass,
-        'type': type,
+        'type': _safe_type,
         'callable': callable,
         'staticmethod': staticmethod,
         'classmethod': classmethod,
         'property': property,
+        
+        # Attribute access (restricted)
+        'getattr': _safe_getattr,
+        'setattr': _safe_setattr,
+        'hasattr': hasattr,
+        'delattr': _blocked_delattr,
+        'vars': _blocked_vars,
         
         # Iteration
         'iter': iter,
@@ -626,11 +835,19 @@ final class PythonRunner {
         'zip': zip,
         'map': map,
         'filter': filter,
-        'any': any,
-        'all': all,
+        'any': _safe_any,
+        'all': _safe_all,
         
         # I/O
         'print': print,
+        
+        # Blocked builtins (explicitly blocked for security)
+        'eval': _blocked_eval,
+        'exec': _blocked_exec,
+        'compile': _blocked_compile,
+        'open': _blocked_open,
+        'input': _blocked_input,
+        'breakpoint': _blocked_breakpoint,
         
         # Constants
         'True': True,
