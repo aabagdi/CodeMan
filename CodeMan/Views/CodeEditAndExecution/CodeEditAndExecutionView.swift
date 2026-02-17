@@ -19,6 +19,8 @@ struct CodeEditAndExecutionView: View {
   @State private var executionResult: PythonRunner.ExecutionResult?
   @State private var isRunning = false
   @State private var pythonVersion: String?
+  @State private var successCount = 0
+  @State private var errorCount = 0
   
   init(translationID: Translation.ID) {
     self.translationID = translationID
@@ -54,6 +56,8 @@ struct CodeEditAndExecutionView: View {
         }
       }
     }
+    .sensoryFeedback(.success, trigger: successCount)
+    .sensoryFeedback(.error, trigger: errorCount)
     .navigationTitle("Edit & Run")
     .navigationBarTitleDisplayMode(.inline)
     .task {
@@ -131,6 +135,12 @@ struct CodeEditAndExecutionView: View {
     isRunning = true
     executionResult = PythonRunner.shared.run(code: code)
     isRunning = false
+    
+    if executionResult?.isError == true {
+      errorCount += 1
+    } else {
+      successCount += 1
+    }
   }
 }
 
