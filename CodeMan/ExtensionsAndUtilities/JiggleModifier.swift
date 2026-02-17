@@ -5,11 +5,11 @@
 //  Created by Aadit Bagdi on 2/7/26.
 //
 
-import Foundation
 import SwiftUI
 
 struct JiggleModifier: ViewModifier {
-  let isJiggling: Bool
+  var isJiggling: Bool
+  
   @State private var animating = false
   
   func body(content: Content) -> some View {
@@ -20,8 +20,8 @@ struct JiggleModifier: ViewModifier {
         value: animating
       )
       .animation(.default, value: isJiggling)
-      .onChange(of: isJiggling) { _, newValue in
-        animating = newValue
+      .onChange(of: isJiggling) {
+        animating = isJiggling
       }
       .onAppear {
         animating = isJiggling

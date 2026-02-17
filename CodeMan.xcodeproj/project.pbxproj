@@ -348,6 +348,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CodeMan/Supporting/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = CodeMan;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app requires access to the camera to translate code in a captured photo to Python.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app requires access to the Photo Library in order to read code from images to translate to Python.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -389,6 +390,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CodeMan/Supporting/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = CodeMan;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app requires access to the camera to translate code in a captured photo to Python.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app requires access to the Photo Library in order to read code from images to translate to Python.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

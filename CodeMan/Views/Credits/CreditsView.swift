@@ -35,21 +35,19 @@ struct CreditsView: View {
             CreditRow(
               name: "Highlighter",
               author: "Tony Smith",
-              icon: "paintbrush.fill",
-              color: .purple
+              icon: "🎨",
             )
             
             CreditRow(
               name: "Python Apple Support",
               author: "BeeWare",
-              icon: "ladybug.fill",
-              color: .yellow)
+              icon: "🐍",
+            )
             
             CreditRow(
               name: "SQLiteData",
               author: "Point-Free",
-              icon: "cylinder.fill",
-              color: .blue
+              icon: "💾",
             )
           }
         }
@@ -92,13 +90,11 @@ struct CreditRow: View {
   let name: String
   let author: String
   let icon: String
-  let color: Color
   
   var body: some View {
     HStack(spacing: 12) {
-      Image(systemName: icon)
+      Text(icon)
         .font(.title3)
-        .foregroundStyle(color.gradient)
         .frame(width: 32)
       
       VStack(alignment: .leading, spacing: 2) {

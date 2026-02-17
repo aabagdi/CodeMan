@@ -23,39 +23,27 @@ class CameraModel {
   
   private func setupCallbacks() {
     camera.onPreviewFrame = { [weak self] ciImage in
-      guard let self else { return }
-      Task { @MainActor in
-        self.previewImage = ciImage.image
+      Task { @MainActor [weak self] in
+        self?.previewImage = ciImage.image
       }
     }
     
     camera.onPhotoCaptured = { [weak self] photo in
-      guard let self else { return }
-      Task { @MainActor in
-        self.photoTaken = self.unpackPhoto(photo)
+      Task { @MainActor [weak self] in
+        self?.photoTaken = self?.unpackPhoto(photo)
       }
     }
   }
   
   func handleCameraPreviews() async {
-    let imageStream = camera.previewStream
-      .map { await $0.image }
-    
-    for await image in imageStream {
-      Task { @MainActor in
-        previewImage = image
-      }
+    for await ciImage in camera.previewStream {
+      previewImage = ciImage.image
     }
   }
   
   func handleCameraPhotos() async {
-    let unpackedPhotoStream = camera.photoStream
-      .compactMap { await self.unpackPhoto($0) }
-    
-    for await photoData in unpackedPhotoStream {
-      Task { @MainActor in
-        photoTaken = photoData
-      }
+    for await photo in camera.photoStream {
+      photoTaken = unpackPhoto(photo)
     }
   }
   

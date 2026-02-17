@@ -10,6 +10,7 @@ import Vision
 import UIKit
 
 @Observable
+@MainActor
 class CodeRecognizer {
   var observations = [VNRecognizedTextObservation]()
   var fullCodeBlock = ""
@@ -21,6 +22,15 @@ class CodeRecognizer {
     observations.removeAll()
     fullCodeBlock = ""
     
+    let results = try await runVisionRecognition(on: image.imageData)
+    
+    observations = results
+    fullCodeBlock = combineObservationsIntoCodeBlock(results)
+    isDoneRecognizing = true
+  }
+  
+  @concurrent
+  private func runVisionRecognition(on imageData: Data) async throws -> [VNRecognizedTextObservation] {
     let request = VNRecognizeTextRequest()
     request.usesLanguageCorrection = false
     request.recognitionLanguages = ["en-US"]
@@ -32,21 +42,15 @@ class CodeRecognizer {
       "if", "then", "else", "for", "while", "do", "return"
     ]
     
-    guard let cgImage = createCGImage(from: image.imageData) else {
+    guard let cgImage = await Self.createCGImage(from: imageData) else {
       throw NSError(domain: "CodeRecognizer", code: -1,
                     userInfo: [NSLocalizedDescriptionKey: "Failed to create CGImage from data"])
     }
     
     let requestHandler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-    
     try requestHandler.perform([request])
     
-    if let results = request.results {
-      observations = results
-      fullCodeBlock = combineObservationsIntoCodeBlock(results)
-    }
-    
-    isDoneRecognizing = true
+    return request.results ?? []
   }
   
   private func combineObservationsIntoCodeBlock(_ observations: [VNRecognizedTextObservation]) -> String {
@@ -61,7 +65,7 @@ class CodeRecognizer {
     return lines.joined(separator: "\n")
   }
   
-  private func createCGImage(from data: Data) -> CGImage? {
+  private static func createCGImage(from data: Data) -> CGImage? {
     guard let uiImage = UIImage(data: data) else {
       return nil
     }

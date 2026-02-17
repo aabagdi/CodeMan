@@ -22,7 +22,7 @@ struct ImageHeaderView: View {
         .resizable()
         .scaledToFit()
         .frame(maxHeight: 300)
-        .cornerRadius(12)
+        .clipShape(.rect(cornerRadius: 12))
         .overlay(
           RoundedRectangle(cornerRadius: 12)
             .stroke(Color.blue.opacity(0.3), lineWidth: 2)

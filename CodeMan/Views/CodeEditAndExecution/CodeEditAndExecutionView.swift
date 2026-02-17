@@ -56,7 +56,7 @@ struct CodeEditAndExecutionView: View {
     }
     .navigationTitle("Edit & Run")
     .navigationBarTitleDisplayMode(.inline)
-    .onAppear {
+    .task {
       pythonVersion = "Python " + PythonRunner.shared.getVersion()
     }
   }
@@ -117,7 +117,7 @@ struct CodeEditAndExecutionView: View {
       .padding(.vertical, 12)
       .background(isRunning ? Color.orange : Color.green)
       .foregroundStyle(.white)
-      .clipShape(RoundedRectangle(cornerRadius: 8))
+      .clipShape(.rect(cornerRadius: 8))
     }
     .disabled(isRunning)
   }
@@ -170,7 +170,7 @@ private struct OutputSection: View {
       .frame(maxWidth: .infinity, minHeight: 100, maxHeight: 200)
       .padding(8)
       .background(hasError ? Color.red.opacity(0.1) : Color(.systemGray6))
-      .clipShape(RoundedRectangle(cornerRadius: 8))
+      .clipShape(.rect(cornerRadius: 8))
       .overlay(
         RoundedRectangle(cornerRadius: 8)
           .stroke(hasError ? Color.red.opacity(0.5) : Color.clear, lineWidth: 1)

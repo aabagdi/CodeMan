@@ -5,7 +5,6 @@
 //  Created by Aadit Bagdi on 2/14/26.
 //
 
-import Foundation
 import SwiftUI
 
 struct IntelligenceStrokeView<S: InsettableShape>: View {

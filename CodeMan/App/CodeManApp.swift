@@ -10,7 +10,7 @@ import SwiftUI
 import SQLiteData
 
 @main
-struct CodeManApp: App {  
+struct CodeManApp: App {
   init() {
     PythonRunner.shared.initialize()
     

@@ -56,7 +56,7 @@ struct ImageCropperView: View {
             .onAppear {
               imageFrame = geometry.frame(in: .local)
             }
-            .onChange(of: geometry.size) { _, _ in
+            .onChange(of: geometry.size) {
               imageFrame = geometry.frame(in: .local)
             }
           
@@ -163,7 +163,7 @@ struct ImageCropperView: View {
         rotationAngle = initialRotation
         updateRotatedImageIfNeeded()
       }
-      .onChange(of: rotationAngle) { _, _ in
+      .onChange(of: rotationAngle) {
         updateRotatedImageIfNeeded()
       }
   }

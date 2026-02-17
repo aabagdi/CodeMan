@@ -63,12 +63,7 @@ struct ConfirmImageView: View {
   @ViewBuilder
   private func buttonsView() -> some View {
     HStack {
-      Button {
-        Task {
-          await model.resumePreview()
-        }
-        model.photoTaken = nil
-      } label: {
+      Button { retakeButtonTapped() } label: {
         Text("Retake")
           .font(.body)
           .foregroundStyle(.white)
@@ -76,9 +71,7 @@ struct ConfirmImageView: View {
       
       Spacer()
       
-      Button {
-        isCropMode = true
-      } label: {
+      Button { isCropMode = true } label: {
         Label("Crop", systemImage: "crop")
           .font(.body)
           .foregroundStyle(.white)
@@ -86,11 +79,7 @@ struct ConfirmImageView: View {
       
       Spacer()
       
-      Button {
-        withAnimation(.easeInOut(duration: 0.2)) {
-          rotationAngle = (rotationAngle + 90) % 360
-        }
-      } label: {
+      Button { rotateButtonTapped() } label: {
         Label("Rotate", systemImage: "rotate.right")
           .font(.body)
           .foregroundStyle(.white)
@@ -98,12 +87,7 @@ struct ConfirmImageView: View {
       
       Spacer()
       
-      Button {
-        if let photo = model.photoTaken {
-          let imageForRecognition = applyRotation(to: photo)
-          navigationPath.append(CameraNavigation.recognition(imageForRecognition))
-        }
-      } label: {
+      Button { useImageButtonTapped() } label: {
         Text("Use Image")
           .font(.body.bold())
           .foregroundStyle(.white)
@@ -111,6 +95,23 @@ struct ConfirmImageView: View {
     }
     .padding(.horizontal, 32)
     .padding(.top, 32)
+  }
+  
+  private func retakeButtonTapped() {
+    Task { await model.resumePreview() }
+    model.photoTaken = nil
+  }
+  
+  private func rotateButtonTapped() {
+    withAnimation(.easeInOut(duration: 0.2)) {
+      rotationAngle = (rotationAngle + 90) % 360
+    }
+  }
+  
+  private func useImageButtonTapped() {
+    guard let photo = model.photoTaken else { return }
+    let imageForRecognition = applyRotation(to: photo)
+    navigationPath.append(CameraNavigation.recognition(imageForRecognition))
   }
   
   private func applyRotation(to photo: PhotoData) -> PhotoData {

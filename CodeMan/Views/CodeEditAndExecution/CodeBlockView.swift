@@ -38,7 +38,7 @@ struct CodeBlockView: View {
           .textSelection(.enabled)
       }
       .background(backgroundColor.opacity(0.1))
-      .cornerRadius(8)
+      .clipShape(.rect(cornerRadius: 8))
       .padding(.horizontal)
     }
   }

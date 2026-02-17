@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct DeleteButtonView: View {
-  @Binding var isPresented: Bool
+  var isPresented: Bool
   
   let onTap: () throws -> Void
   
@@ -17,16 +17,17 @@ struct DeleteButtonView: View {
       try? onTap()
     } label: {
       Image(systemName: "minus.circle.fill")
+        .accessibilityLabel("Delete")
     }
     .scaleEffect(1.2)
-    .foregroundStyle(Color.red)
+    .foregroundStyle(.red)
     .opacity(isPresented ? 1 : 0)
     .animation(.easeInOut, value: isPresented)
   }
 }
 
 #Preview {
-  DeleteButtonView(isPresented: .constant(true)) {
+  DeleteButtonView(isPresented: true) {
     
   }
 }

@@ -35,7 +35,7 @@ struct CameraView: View {
                   .resizable()
                   .scaledToFill()
                   .frame(width: 60, height: 60)
-                  .clipShape(RoundedRectangle(cornerRadius: 8))
+                  .clipShape(.rect(cornerRadius: 8))
                   .padding()
               } else {
                 RoundedRectangle(cornerRadius: 8)
@@ -71,31 +71,27 @@ struct CameraView: View {
       .task {
         await model.handleCameraPhotos()
       }
-      .onChange(of: model.photoTaken != nil) { _, newValue in
-        Task {
-          if newValue {
-            await model.pausePreview()
-          } else {
-            await model.resumePreview()
-          }
+      .task(id: model.photoTaken != nil) {
+        if model.photoTaken != nil {
+          await model.pausePreview()
+        } else {
+          await model.resumePreview()
         }
       }
-      .onChange(of: pickerItem) { _, newValue in
-        Task {
-          guard let newValue,
-                let data = try? await newValue.loadTransferable(type: Data.self),
-                let uiImage = UIImage(data: data) else {
-            return
-          }
-          
-          await model.pausePreview()
-          model.photoTaken = PhotoData(
-            image: Image(uiImage: uiImage),
-            imageData: data,
-            imageSize: (width: Int(uiImage.size.width), height: Int(uiImage.size.height))
-          )
-          pickerItem = nil
+      .task(id: pickerItem) {
+        guard let pickerItem,
+              let data = try? await pickerItem.loadTransferable(type: Data.self),
+              let uiImage = UIImage(data: data) else {
+          return
         }
+        
+        await model.pausePreview()
+        model.photoTaken = PhotoData(
+          image: Image(uiImage: uiImage),
+          imageData: data,
+          imageSize: (width: Int(uiImage.size.width), height: Int(uiImage.size.height))
+        )
+        self.pickerItem = nil
       }
       .ignoresSafeArea(.all)
   }

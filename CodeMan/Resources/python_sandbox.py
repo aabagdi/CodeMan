@@ -11,6 +11,7 @@ from io import StringIO
 # Configuration constants
 _MAX_ALLOCATION_SIZE = 1_000_000  # Maximum elements in collections
 _MAX_LITERAL_NUMBER = 10_000_000  # Maximum value for literal numbers in expressions
+_MAX_RESULT_BITS = 1_000_000      # ~300k decimal digits, reasonable for most algorithms
 _user_filename = "<user_code>"    # Filename used in tracebacks
 
 # =============================================================================
@@ -44,10 +45,13 @@ class AllocationChecker(ast.NodeVisitor):
             if left is not None and right is not None:
                 try:
                     if isinstance(node.op, ast.Pow):
-                        # Limit exponent to prevent hanging on huge numbers
-                        # Also check if base is greater than max and power is greater than 1
-                        if right > 20 or (left >= _MAX_LITERAL_NUMBER and right > 1):
-                            return float('inf')  # Signal "too big"
+                        # Estimate bit-length to prevent hanging on huge numbers
+                        if right > 0 and left != 0 and abs(left) != 1:
+                            import math
+                            base_bits = int(math.log2(abs(left))) + 1 if abs(left) >= 1 else 1
+                            estimated_bits = int(right * base_bits)
+                            if estimated_bits > _MAX_RESULT_BITS:
+                                return float('inf')  # Signal "too big"
                         return left ** right
                     elif isinstance(node.op, ast.Mult):
                         return left * right
@@ -86,9 +90,13 @@ class AllocationChecker(ast.NodeVisitor):
             if func_name == 'pow' and len(args) >= 2:
                 if args[0] is not None and args[1] is not None:
                     try:
-                        if args[1] > 20 or (args[0] >= _MAX_LITERAL_NUMBER and args[1] > 1):
-                            return float('inf')
-                        return pow(args[0], args[1])
+                        base, exp = args[0], args[1]
+                        if exp > 0 and base != 0 and abs(base) != 1:
+                            import math
+                            base_bits = int(math.log2(abs(base))) + 1 if abs(base) >= 1 else 1
+                            if int(exp * base_bits) > 1_000_000:
+                                return float('inf')
+                        return pow(base, exp)
                     except:
                         return None
             
@@ -96,10 +104,13 @@ class AllocationChecker(ast.NodeVisitor):
             if func_name == 'math.pow' and len(args) == 2:
                 if args[0] is not None and args[1] is not None:
                     try:
-                        if args[1] > 20 or (args[0] >= _MAX_LITERAL_NUMBER and args[1] > 1):
-                            return float('inf')
-                        import math
-                        return math.pow(args[0], args[1])
+                        base, exp = args[0], args[1]
+                        if exp > 0 and base != 0 and abs(base) != 1:
+                            import math
+                            base_bits = int(math.log2(abs(base))) + 1 if abs(base) >= 1 else 1
+                            if int(exp * base_bits) > 1_000_000:
+                                return float('inf')
+                        return math.pow(base, exp)
                     except:
                         return None
             
@@ -466,7 +477,10 @@ class _safe_str(_real_str):
             if total_len > _MAX_ALLOCATION_SIZE:
                 raise MemoryError(f"str.join() would create ~{total_len:,}+ characters (max {_MAX_ALLOCATION_SIZE:,})")
         result = _real_str.join(self, items)
-        return _safe_str(result) if len(result) <= _MAX_ALLOCATION_SIZE else result
+        # Final check on actual result (estimate could be slightly off)
+        if len(result) > _MAX_ALLOCATION_SIZE:
+            raise MemoryError(f"str.join() created {len(result):,} characters (max {_MAX_ALLOCATION_SIZE:,})")
+        return _safe_str(result)
 
 
 _real_bytes = bytes
@@ -547,12 +561,14 @@ class _safe_set(_real_set):
         super().add(item)
     
     def update(self, *others):
-        # Estimate worst case size
+        # Process each iterable incrementally, checking actual set size
         for other in others:
-            other_list = _real_list(other)
-            if len(self) + len(other_list) > _MAX_ALLOCATION_SIZE:
-                raise MemoryError(f"set.update() could exceed {_MAX_ALLOCATION_SIZE:,} elements")
-        super().update(*others)
+            for item in other:
+                # Only count if item is actually new
+                if item not in self:
+                    if len(self) + 1 > _MAX_ALLOCATION_SIZE:
+                        raise MemoryError(f"set.update() would exceed {_MAX_ALLOCATION_SIZE:,} elements")
+                super().add(item)
 
 
 _real_dict = dict
@@ -639,7 +655,7 @@ def _blocked_locals(*args, **kwargs):
 
 _dangerous_attrs = {
     # Class/type introspection
-    '__class__', '__bases__', '__subclasses__', '__mro__',
+    '__class__', '__bases__', '__subclasses__', '__mro__', '__base__',
     # Code/globals access
     '__globals__', '__code__', '__builtins__', '__import__',
     # Module internals
@@ -654,6 +670,10 @@ _dangerous_attrs = {
     '__get__', '__set__', '__delete__',
     # Memory view (can manipulate raw memory)
     'cast', 'toreadonly',
+    # Additional introspection
+    'gi_frame', 'gi_code', 'cr_frame', 'cr_code', 'ag_frame', 'ag_code',
+    # Metaclass hooks (can run code during class creation/GC)
+    '__init_subclass__', '__set_name__', '__del__',
 }
 
 _real_getattr = getattr
@@ -667,6 +687,52 @@ def _safe_setattr(obj, name, value):
     if isinstance(name, str) and name in _dangerous_attrs:
         raise AttributeError(f"Setting '{name}' is not allowed")
     _real_setattr(obj, name, value)
+
+
+# =============================================================================
+# AST Transformer to Intercept Attribute Access
+# =============================================================================
+
+_protected_names = {'__safe_getattr__', '__builtins__'}
+
+class AttributeAccessTransformer(ast.NodeTransformer):
+    """Transforms attribute access to use safe getattr for dangerous attributes."""
+    
+    def visit_Attribute(self, node):
+        self.generic_visit(node)  # Transform children first
+        
+        # Check if accessing a dangerous attribute
+        if node.attr in _dangerous_attrs:
+            if isinstance(node.ctx, ast.Load):
+                # Transform obj.attr into __safe_getattr__(obj, 'attr')
+                return ast.Call(
+                    func=ast.Name(id='__safe_getattr__', ctx=ast.Load()),
+                    args=[node.value, ast.Constant(value=node.attr)],
+                    keywords=[]
+                )
+            elif isinstance(node.ctx, (ast.Store, ast.Del)):
+                # Block assignment/deletion to dangerous attributes
+                raise SyntaxError(f"Access to '{node.attr}' is not allowed (line {node.lineno})")
+        return node
+    
+    def visit_Name(self, node):
+        """Block assignment to protected sandbox names."""
+        if isinstance(node.ctx, (ast.Store, ast.Del)) and node.id in _protected_names:
+            raise SyntaxError(f"Cannot modify protected name '{node.id}' (line {node.lineno})")
+        return node
+    
+    def visit_Import(self, node):
+        """Block 'import builtins' which could bypass restrictions."""
+        for alias in node.names:
+            if alias.name == 'builtins' or alias.name.startswith('builtins.'):
+                raise SyntaxError(f"Import of 'builtins' is not allowed (line {node.lineno})")
+        return node
+    
+    def visit_ImportFrom(self, node):
+        """Block 'from builtins import ...' which could bypass restrictions."""
+        if node.module == 'builtins' or (node.module and node.module.startswith('builtins.')):
+            raise SyntaxError(f"Import from 'builtins' is not allowed (line {node.lineno})")
+        return node
 
 
 # =============================================================================
@@ -755,12 +821,142 @@ def _safe_reversed(seq):
             raise MemoryError(f"reversed() input has {len(seq):,} elements (max {_MAX_ALLOCATION_SIZE:,})")
     return _real_reversed(seq)
 
+_real_pow = pow
+
+def _estimate_result_bits(base, exp):
+    """Estimate the bit-length of base**exp without computing it."""
+    if exp <= 0:
+        return 1  # Result is 1 or a fraction
+    if base == 0:
+        return 1
+    
+    abs_base = abs(base)
+    if abs_base == 1:
+        return 1
+    
+    # bit_length of result ≈ exp * log2(|base|) ≈ exp * bit_length(|base|)
+    # For more accuracy: log2(n) ≈ bit_length(n) - 1 + fraction
+    # We use a conservative estimate
+    if isinstance(abs_base, int):
+        base_bits = abs_base.bit_length()
+    else:
+        # For floats, estimate from the value
+        import math
+        if abs_base < 1:
+            return 1  # Result shrinks
+        base_bits = int(math.log2(abs_base)) + 1
+    
+    return int(exp * base_bits)
+
+def _safe_pow(base, exp, mod=None):
+    """pow() wrapper that prevents huge computations."""
+    # Three-arg pow with modulo is always safe (used in cryptography)
+    if mod is not None:
+        return _real_pow(base, exp, mod)
+    
+    # Check for dangerous exponentiation
+    try:
+        if isinstance(base, (int, float)) and isinstance(exp, (int, float)):
+            estimated_bits = _estimate_result_bits(base, exp)
+            if estimated_bits > _MAX_RESULT_BITS:
+                raise OverflowError(
+                    f"pow({base}, {exp}) would produce ~{estimated_bits:,} bits "
+                    f"(max {_MAX_RESULT_BITS:,} bits)"
+                )
+    except TypeError:
+        pass  # Complex or other types, let Python handle it
+    
+    return _real_pow(base, exp)
+
+_real_dir = dir
+def _safe_dir(obj=None):
+    """dir() wrapper that filters out dangerous attributes."""
+    if obj is None:
+        # dir() with no args - return empty to prevent namespace introspection
+        return []
+    result = _real_dir(obj)
+    return [attr for attr in result if attr not in _dangerous_attrs]
+
 
 # =============================================================================
 # Safe Regex Wrapper
 # =============================================================================
 
 _real_re_module = None
+
+class _SafePattern:
+    """Wrapper around compiled regex pattern that enforces input length limits."""
+    _max_input_length = 100_000
+    
+    def __init__(self, real_pattern):
+        self._real_pattern = real_pattern
+    
+    def _check_string(self, string):
+        if string is not None and len(string) > self._max_input_length:
+            raise ValueError(f"Input string too long ({len(string)} > {self._max_input_length})")
+    
+    def search(self, string, pos=0, endpos=None):
+        self._check_string(string)
+        if endpos is None:
+            return self._real_pattern.search(string, pos)
+        return self._real_pattern.search(string, pos, endpos)
+    
+    def match(self, string, pos=0, endpos=None):
+        self._check_string(string)
+        if endpos is None:
+            return self._real_pattern.match(string, pos)
+        return self._real_pattern.match(string, pos, endpos)
+    
+    def fullmatch(self, string, pos=0, endpos=None):
+        self._check_string(string)
+        if endpos is None:
+            return self._real_pattern.fullmatch(string, pos)
+        return self._real_pattern.fullmatch(string, pos, endpos)
+    
+    def findall(self, string, pos=0, endpos=None):
+        self._check_string(string)
+        if endpos is None:
+            return self._real_pattern.findall(string, pos)
+        return self._real_pattern.findall(string, pos, endpos)
+    
+    def finditer(self, string, pos=0, endpos=None):
+        self._check_string(string)
+        if endpos is None:
+            return self._real_pattern.finditer(string, pos)
+        return self._real_pattern.finditer(string, pos, endpos)
+    
+    def sub(self, repl, string, count=0):
+        self._check_string(string)
+        return self._real_pattern.sub(repl, string, count)
+    
+    def subn(self, repl, string, count=0):
+        self._check_string(string)
+        return self._real_pattern.subn(repl, string, count)
+    
+    def split(self, string, maxsplit=0):
+        self._check_string(string)
+        return self._real_pattern.split(string, maxsplit)
+    
+    # Pass through read-only attributes
+    @property
+    def pattern(self):
+        return self._real_pattern.pattern
+    
+    @property
+    def flags(self):
+        return self._real_pattern.flags
+    
+    @property
+    def groups(self):
+        return self._real_pattern.groups
+    
+    @property
+    def groupindex(self):
+        return self._real_pattern.groupindex
+    
+    def __repr__(self):
+        return f"_SafePattern({self._real_pattern!r})"
+
 
 class _SafeRegex:
     """Wrapper to prevent ReDoS attacks."""
@@ -774,14 +970,17 @@ class _SafeRegex:
             raise ValueError(f"Input string too long ({len(string)} > {self._max_input_length})")
     
     def _get_pattern_str(self, pattern):
-        # Handle both string patterns and compiled Pattern objects
+        # Handle both string patterns and compiled Pattern objects (including our wrapper)
+        if isinstance(pattern, _SafePattern):
+            return pattern.pattern
         if hasattr(pattern, 'pattern'):
             return pattern.pattern
         return pattern
     
     def compile(self, pattern, flags=0):
         self._check_limits(pattern)
-        return _real_re_module.compile(pattern, flags)
+        real_pattern = _real_re_module.compile(pattern, flags)
+        return _SafePattern(real_pattern)
     
     def search(self, pattern, string, flags=0):
         self._check_limits(self._get_pattern_str(pattern), string)
@@ -872,7 +1071,7 @@ _safe_builtins = {
     # Math & Numbers
     'abs': abs,
     'round': round,
-    'pow': pow,
+    'pow': _safe_pow,
     'divmod': divmod,
     'min': _safe_min,
     'max': _safe_max,
@@ -935,6 +1134,9 @@ _safe_builtins = {
     'filter': filter,
     'any': _safe_any,
     'all': _safe_all,
+    
+    # Introspection (filtered)
+    'dir': _safe_dir,
     
     # I/O
     'print': print,
@@ -1002,6 +1204,15 @@ def setup_sandbox(user_code, user_globals, timeout_seconds):
     if safety_errors:
         raise MemoryError("Code rejected:\n" + "\n".join(safety_errors))
     
+    # Parse and transform AST to intercept dangerous attribute access
+    try:
+        tree = ast.parse(user_code)
+        transformer = AttributeAccessTransformer()
+        tree = transformer.visit(tree)
+        ast.fix_missing_locations(tree)
+    except SyntaxError as e:
+        raise SyntaxError(str(e))
+    
     # Store source in linecache so tracebacks can display it
     linecache.cache[_user_filename] = (
         len(user_code),
@@ -1014,10 +1225,13 @@ def setup_sandbox(user_code, user_globals, timeout_seconds):
     user_globals['__builtins__'] = _safe_builtins
     user_globals['__name__'] = '__main__'
     
-    # Set recursion stack limit
-    sys.setrecursionlimit(200)
+    # Add the safe getattr function for transformed attribute access
+    user_globals['__safe_getattr__'] = _safe_getattr
     
-    # Compile user code
-    compiled_code = compile(user_code, _user_filename, 'exec')
+    # Set recursion stack limit
+    sys.setrecursionlimit(500)
+    
+    # Compile transformed AST
+    compiled_code = compile(tree, _user_filename, 'exec')
     
     return compiled_code

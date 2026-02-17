@@ -61,8 +61,8 @@ actor CameraManager: NSObject {
   private let previewStreamContinuation: AsyncStream<CIImage>.Continuation
   nonisolated let previewStream: AsyncStream<CIImage>
   
-  nonisolated(unsafe) var onPreviewFrame: ((CIImage) -> Void)?
-  nonisolated(unsafe) var onPhotoCaptured: ((AVCapturePhoto) -> Void)?
+  nonisolated(unsafe) var onPreviewFrame: (@Sendable (CIImage) -> Void)?
+  nonisolated(unsafe) var onPhotoCaptured: (@Sendable (AVCapturePhoto) -> Void)?
   
   override init() {
     var photoContinuation: AsyncStream<AVCapturePhoto>.Continuation!

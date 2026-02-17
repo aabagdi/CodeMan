@@ -43,27 +43,11 @@ struct PreviewView: View {
       }
     }
     .ignoresSafeArea()
+    .sensoryFeedback(.impact, trigger: isCapturing)
     .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
-      let newOrientation = UIDevice.current.orientation
-      if newOrientation.isValidInterfaceOrientation {
-        withAnimation(.easeInOut(duration: 0.3)) {
-          deviceOrientation = newOrientation
-        }
-        Task {
-          await model.camera.updateDeviceOrientation(newOrientation)
-        }
-      }
+      handleOrientationChange()
     }
-    .onAppear {
-      UIDevice.current.beginGeneratingDeviceOrientationNotifications()
-      let currentOrientation = UIDevice.current.orientation
-      if currentOrientation.isValidInterfaceOrientation {
-        deviceOrientation = currentOrientation
-        Task {
-          await model.camera.updateDeviceOrientation(currentOrientation)
-        }
-      }
-    }
+    .task { await onTask() }
   }
   
   private var previewRotationAngle: Angle {
@@ -88,6 +72,27 @@ struct PreviewView: View {
     }
   }
   
+  private func onTask() async {
+    UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+    let currentOrientation = UIDevice.current.orientation
+    if currentOrientation.isValidInterfaceOrientation {
+      deviceOrientation = currentOrientation
+      await model.camera.updateDeviceOrientation(currentOrientation)
+    }
+  }
+  
+  private func handleOrientationChange() {
+    let newOrientation = UIDevice.current.orientation
+    guard newOrientation.isValidInterfaceOrientation,
+          newOrientation != deviceOrientation else { return }
+    withAnimation(.easeInOut(duration: 0.3)) {
+      deviceOrientation = newOrientation
+    }
+    Task {
+      await model.camera.updateDeviceOrientation(newOrientation)
+    }
+  }
+  
   private func handleTapToFocus(at location: CGPoint, in size: CGSize) {
     let normalizedPoint = CGPoint(
       x: location.x / size.width,
@@ -107,17 +112,19 @@ struct PreviewView: View {
     }
   }
   
+  private func captureButtonTapped() {
+    guard !isCapturing else { return }
+    isCapturing = true
+    Task {
+      try await model.camera.takePhoto()
+    }
+  }
+  
   private func buttonsView() -> some View {
     HStack {
       Spacer()
       
-      Button {
-        guard !isCapturing else { return }
-        isCapturing = true
-        Task {
-          try await model.camera.takePhoto()
-        }
-      } label: {
+      Button { captureButtonTapped() } label: {
         ZStack {
           Circle()
             .strokeBorder(.white, lineWidth: 3)
@@ -140,11 +147,11 @@ struct FocusIndicator: View {
   var body: some View {
     ZStack {
       Circle()
-        .stroke(Color.yellow, lineWidth: 2)
+        .stroke(.yellow, lineWidth: 2)
         .frame(width: 70, height: 70)
       
       Circle()
-        .stroke(Color.yellow.opacity(0.5), lineWidth: 1)
+        .stroke(.yellow.opacity(0.5), lineWidth: 1)
         .frame(width: 90, height: 90)
     }
     .transition(.scale.combined(with: .opacity))

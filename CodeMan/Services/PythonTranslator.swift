@@ -11,6 +11,7 @@ import FoundationModels
 enum TranslationError: LocalizedError {
   case unsupportedLocale
   case modelUnavailable
+  case inputTooLong
   
   var errorDescription: String? {
     switch self {
@@ -18,20 +19,18 @@ enum TranslationError: LocalizedError {
       return "Your device language is not supported by Apple Intelligence. Please change your device language to English (US) in Settings → General → Language & Region. (Tip: If the photo is landscape, try rotating and cropping it.)"
     case .modelUnavailable:
       return "The AI model is not available on this device."
+    case .inputTooLong:
+      return "The input is too long to translate reliably. Please crop the photo to focus on a smaller section of code."
     }
   }
 }
 
 actor PythonTranslator {
-  let session: LanguageModelSession?
+  private let instructions: String
+  private let maxInputLength = 12000
   
   init() {
-    guard SystemLanguageModel.default.supportsLocale() else {
-      print("Warning: Current locale is not supported by Apple Intelligence")
-      session = nil
-      return
-    }
-    let instructions = """
+    instructions = """
            Your job is to translate pseudocode or handwritten code in ANY language
            to idiomatic, Pythonic code. The input text must be in English. 
            You MUST respond in English. Follow Python  best practices (PEP 8) 
@@ -171,21 +170,20 @@ actor PythonTranslator {
            
            Remember: Translate EXACTLY what you're given using Pythonic idioms, nothing more, nothing less.
            """
-    
-    session = LanguageModelSession(instructions: instructions)
   }
   
   func translate(_ input: String) async throws -> String {
-    guard let session else {
+    guard SystemLanguageModel.default.supportsLocale() else {
       throw TranslationError.unsupportedLocale
     }
     
-    let maxInputLength = 12000
-    let sanitized = sanitizeInput(input)
+    let sanitized = await input.escapingDelimiterTags()
     
-    if sanitized.count > maxInputLength {
-      return try await translateInChunks(sanitized, maxLength: maxInputLength)
+    guard sanitized.count <= maxInputLength else {
+      throw TranslationError.inputTooLong
     }
+    
+    let session = LanguageModelSession(instructions: instructions)
     
     let prompt = buildPrompt(for: sanitized)
     let result = try await session.respond(to: prompt)
@@ -195,128 +193,141 @@ actor PythonTranslator {
       return ""
     }
     
-    let stripped = stripOutputComments(from: content)
-    return validateOutput(stripped)
+    return await content
+      .strippingOutputComments()
+      .validatingModelOutput()
   }
   
-  private func stripOutputComments(from text: String) -> String {
-    var result = text
+  private let bfsTemplate = """
+    from collections import defaultdict, deque
+    class Graph:
+        def __init__(self):
+            self.graph = defaultdict(list)
+        def add_edge(self, u, v):
+            self.graph[u].append(v)
+        def bfs(self, start):
+            visited = set()
+            queue = deque([start])
+            visited.add(start)
+            result = []
+            while queue:
+                vertex = queue.popleft()
+                result.append(vertex)
+                for neighbor in self.graph[vertex]:
+                    if neighbor not in visited:
+                        visited.add(neighbor)
+                        queue.append(neighbor)
+            return result
     
-    // Remove "# Example output", "# Output:", "# Expected output:" and everything after
-    result = result.replacing(/(?s)\n*\s*#\s*([Ee]xample\s+)?([Ee]xpected\s+)?[Oo]utput:?.*$/, with: "")
-    
-    return result.trimmingCharacters(in: .whitespacesAndNewlines)
-  }
+    g = Graph()
+    g.add_edge(0, 1)
+    g.add_edge(0, 2)
+    g.add_edge(1, 2)
+    g.add_edge(2, 3)
+    print(g.bfs(0))
+    """
   
-  private func validateOutput(_ output: String) -> String {
-    var validated = output
+  private let dfsRecursiveTemplate = """
+    from collections import defaultdict
+    class Graph:
+        def __init__(self):
+            self.graph = defaultdict(list)
+        def add_edge(self, u, v):
+            self.graph[u].append(v)
+        def dfs(self, start):
+            visited = set()
+            result = []
+            self._dfs_helper(start, visited, result)
+            return result
+        def _dfs_helper(self, vertex, visited, result):
+            visited.add(vertex)
+            result.append(vertex)
+            for neighbor in self.graph[vertex]:
+                if neighbor not in visited:
+                    self._dfs_helper(neighbor, visited, result)
     
-    let leakedTags = [
-      "<code_to_translate>",
-      "</code_to_translate>",
-      "<algorithm_request>",
-      "</algorithm_request>",
-      "<instruction>",
-      "</instruction>",
-      "<system>",
-      "</system>",
-    ]
-    
-    for tag in leakedTags {
-      validated = validated.replacingOccurrences(of: tag, with: "", options: .caseInsensitive)
-    }
-    
-    let suspiciousPatterns = [
-      "I cannot",
-      "I can't",
-      "I will not",
-      "I won't",
-      "As an AI",
-      "As a language model",
-      "I'm sorry",
-      "I apologize",
-    ]
-    
-    for pattern in suspiciousPatterns {
-      if validated.lowercased().contains(pattern.lowercased()) {
-        return ""
-      }
-    }
-    
-    return validated.trimmingCharacters(in: .whitespacesAndNewlines)
-  }
+    g = Graph()
+    g.add_edge(0, 1)
+    g.add_edge(0, 2)
+    g.add_edge(1, 2)
+    g.add_edge(2, 3)
+    print(g.dfs(0))
+    """
   
-  private func sanitizeInput(_ input: String) -> String {
-    let injectionPatterns = [
-      "ignore all",
-      "ignore previous",
-      "ignore all previous",
-      "ignore the above",
-      "ignore instructions",
-      "disregard previous",
-      "disregard all",
-      "disregard instructions",
-      "forget previous",
-      "forget all",
-      "forget instructions",
-      "new instructions:",
-      "system:",
-      "assistant:",
-      "user:",
-      "human:",
-      "[system]",
-      "[assistant]",
-      "<<sys>>",
-      "<</sys>>",
-      "###instruction",
-      "### instruction",
-      "do not translate",
-      "don't translate",
-      "instead of translating",
-      "stop translating",
-    ]
+  private let dfsIterativeTemplate = """
+    from collections import defaultdict
+    class Graph:
+        def __init__(self):
+            self.graph = defaultdict(list)
+        def add_edge(self, u, v):
+            self.graph[u].append(v)
+        def dfs(self, start):
+            visited = set()
+            stack = [start]
+            result = []
+            while stack:
+                vertex = stack.pop()
+                if vertex not in visited:
+                    visited.add(vertex)
+                    result.append(vertex)
+                    for neighbor in reversed(self.graph[vertex]):
+                        if neighbor not in visited:
+                            stack.append(neighbor)
+            return result
     
-    var sanitized = input
-    for pattern in injectionPatterns {
-      sanitized = sanitized.replacingOccurrences(
-        of: pattern,
-        with: "",
-        options: .caseInsensitive
-      )
-    }
-    
-    sanitized = escapeDelimiterTags(sanitized)
-    
-    return sanitized
-  }
+    g = Graph()
+    g.add_edge(0, 1)
+    g.add_edge(0, 2)
+    g.add_edge(1, 2)
+    g.add_edge(2, 3)
+    print(g.dfs(0))
+    """
   
-  private func escapeDelimiterTags(_ input: String) -> String {
-    let tagsToEscape = [
-      "<code_to_translate>",
-      "</code_to_translate>",
-      "<algorithm_request>",
-      "</algorithm_request>",
-      "<instruction>",
-      "</instruction>",
-      "<system>",
-      "</system>",
-    ]
+  private let quicksortTemplate = """
+    def quicksort(arr, low, high):
+        if low < high:
+            pivot_index = partition(arr, low, high)
+            quicksort(arr, low, pivot_index - 1)
+            quicksort(arr, pivot_index + 1, high)
+
+    def partition(arr, low, high):
+        pivot = arr[high]
+        i = low - 1
+        for j in range(low, high):
+            if arr[j] <= pivot:
+                i += 1
+                arr[i], arr[j] = arr[j], arr[i]
+        arr[i + 1], arr[high] = arr[high], arr[i + 1]
+        return i + 1
+
+    arr = [64, 34, 25, 12, 22, 11, 90]
+    quicksort(arr, 0, len(arr) - 1)
+    print(arr)
+    # Time: O(n log n) average, O(n^2) worst, Space: O(log n) average, O(n) worst
+    """
+  
+  private let floydWarshallTemplate = """
+    def floyd_warshall(graph):
+        n = len(graph)
+        dist = [row[:] for row in graph]
+        for k in range(n):
+            for i in range(n):
+                for j in range(n):
+                    if dist[i][k] + dist[k][j] < dist[i][j]:
+                        dist[i][j] = dist[i][k] + dist[k][j]
+        return dist
     
-    var escaped = input
-    for tag in tagsToEscape {
-      let escapedTag = tag
-        .replacingOccurrences(of: "<", with: "&lt;")
-        .replacingOccurrences(of: ">", with: "&gt;")
-      escaped = escaped.replacingOccurrences(of: tag, with: escapedTag, options: .caseInsensitive)
-    }
-    
-    return escaped
-  }
+    graph = [[0, 3, float('inf'), 7], [8, 0, 2, float('inf')], [5, float('inf'), 0, 1], [2, float('inf'), float('inf'), 0]]
+    result = floyd_warshall(graph)
+    for row in result:
+        print(row)
+    """
   
   private func buildPrompt(for input: String) -> String {
     let lowercased = input.lowercased()
     
     let algorithmPatterns: [(keywords: [String], instruction: String)] = [
+      // Simple algorithm data provision
       (["binary", "search"],
        "\n\n[IMPORTANT: Add example data - a sorted array like [1, 3, 5, 7, 9, 11, 13] and target = 7, then call the function and print the result]"),
       (["linear", "search"],
@@ -330,7 +341,7 @@ actor PythonTranslator {
       (["merge", "sort"],
        "\n\n[IMPORTANT: Add example data - an unsorted array like [64, 34, 25, 12, 22, 11, 90], then call the function and print the result]"),
       (["quick", "sort"],
-       "\n\n[IMPORTANT: Add example data - an unsorted array like [64, 34, 25, 12, 22, 11, 90], then call the function and print the result]"),
+       "\n\n[IMPORTANT: Follow this EXACT pattern for quicksort with correct partition logic:\n\(quicksortTemplate)\nThe partition function MUST increment i BEFORE swapping, not after. This is critical for correctness.]"),
       (["heap", "sort"],
        "\n\n[IMPORTANT: Add example data - an unsorted array like [64, 34, 25, 12, 22, 11, 90], then call the function and print the result]"),
       (["quickselect"],
@@ -343,30 +354,40 @@ actor PythonTranslator {
        "\n\n[IMPORTANT: Add example - call the function with n = 10 and print the result]"),
       (["factorial"],
        "\n\n[IMPORTANT: Add example - call the function with n = 5 and print the result]"),
+      
+      // BFS patterns
       (["bfs"],
-       "\n\n[IMPORTANT: Follow this EXACT pattern for a complete BFS:\nfrom collections import defaultdict, deque\nclass Graph:\n    def __init__(self):\n        self.graph = defaultdict(list)\n    def add_edge(self, u, v):\n        self.graph[u].append(v)\n    def bfs(self, start):\n        visited = set()\n        queue = deque([start])\n        visited.add(start)\n        result = []\n        while queue:\n            vertex = queue.popleft()\n            result.append(vertex)\n            for neighbor in self.graph[vertex]:\n                if neighbor not in visited:\n                    visited.add(neighbor)\n                    queue.append(neighbor)\n        return result\n\ng = Graph()\ng.add_edge(0, 1)\ng.add_edge(0, 2)\ng.add_edge(1, 2)\ng.add_edge(2, 3)\nprint(g.bfs(0))\n\nAdapt this pattern to match the input code's logic. ALL variables must be defined before use. Do NOT create standalone functions that reference undefined global variables.]"),
+       "\n\n[IMPORTANT: Follow this EXACT pattern for a complete BFS:\n\(bfsTemplate)\nAdapt this pattern to match the input code's logic. ALL variables must be defined before use. Do NOT create standalone functions that reference undefined global variables.]"),
       (["breadth"],
-       "\n\n[IMPORTANT: Follow this EXACT pattern for a complete BFS:\nfrom collections import defaultdict, deque\nclass Graph:\n    def __init__(self):\n        self.graph = defaultdict(list)\n    def add_edge(self, u, v):\n        self.graph[u].append(v)\n    def bfs(self, start):\n        visited = set()\n        queue = deque([start])\n        visited.add(start)\n        result = []\n        while queue:\n            vertex = queue.popleft()\n            result.append(vertex)\n            for neighbor in self.graph[vertex]:\n                if neighbor not in visited:\n                    visited.add(neighbor)\n                    queue.append(neighbor)\n        return result\n\ng = Graph()\ng.add_edge(0, 1)\ng.add_edge(0, 2)\ng.add_edge(1, 2)\ng.add_edge(2, 3)\nprint(g.bfs(0))\n\nAdapt this pattern to match the input code's logic. ALL variables must be defined before use. Do NOT create standalone functions that reference undefined global variables.]"),
+       "\n\n[IMPORTANT: Follow this EXACT pattern for a complete BFS:\n\(bfsTemplate)\nAdapt this pattern to match the input code's logic. ALL variables must be defined before use. Do NOT create standalone functions that reference undefined global variables.]"),
+      
+      // Iterative DFS patterns
       (["dfs", "iterative"],
-       "\n\n[IMPORTANT: The input specifies ITERATIVE DFS. You MUST use a stack-based approach, NOT recursion. Follow this EXACT pattern:\nfrom collections import defaultdict\nclass Graph:\n    def __init__(self):\n        self.graph = defaultdict(list)\n    def add_edge(self, u, v):\n        self.graph[u].append(v)\n    def dfs(self, start):\n        visited = set()\n        stack = [start]\n        result = []\n        while stack:\n            vertex = stack.pop()\n            if vertex not in visited:\n                visited.add(vertex)\n                result.append(vertex)\n                for neighbor in reversed(self.graph[vertex]):\n                    if neighbor not in visited:\n                        stack.append(neighbor)\n        return result\n\ng = Graph()\ng.add_edge(0, 1)\ng.add_edge(0, 2)\ng.add_edge(1, 2)\ng.add_edge(2, 3)\nprint(g.dfs(0))\n\nDo NOT use recursion. Use a while loop with stack.pop() and stack.append(). ALL variables must be defined before use.]"),
+       "\n\n[IMPORTANT: The input specifies ITERATIVE DFS. You MUST use a stack-based approach, NOT recursion. Follow this EXACT pattern:\n\(dfsIterativeTemplate)\nDo NOT use recursion. Use a while loop with stack.pop() and stack.append(). ALL variables must be defined before use.]"),
       (["dfs", "stack"],
-       "\n\n[IMPORTANT: The input specifies stack-based DFS. You MUST use a stack-based approach, NOT recursion. Follow this EXACT pattern:\nfrom collections import defaultdict\nclass Graph:\n    def __init__(self):\n        self.graph = defaultdict(list)\n    def add_edge(self, u, v):\n        self.graph[u].append(v)\n    def dfs(self, start):\n        visited = set()\n        stack = [start]\n        result = []\n        while stack:\n            vertex = stack.pop()\n            if vertex not in visited:\n                visited.add(vertex)\n                result.append(vertex)\n                for neighbor in reversed(self.graph[vertex]):\n                    if neighbor not in visited:\n                        stack.append(neighbor)\n        return result\n\ng = Graph()\ng.add_edge(0, 1)\ng.add_edge(0, 2)\ng.add_edge(1, 2)\ng.add_edge(2, 3)\nprint(g.dfs(0))\n\nDo NOT use recursion. Use a while loop with stack.pop() and stack.append(). ALL variables must be defined before use.]"),
+       "\n\n[IMPORTANT: The input specifies stack-based DFS. You MUST use a stack-based approach, NOT recursion. Follow this EXACT pattern:\n\(dfsIterativeTemplate)\nDo NOT use recursion. Use a while loop with stack.pop() and stack.append(). ALL variables must be defined before use.]"),
       (["depth", "iterative"],
-       "\n\n[IMPORTANT: The input specifies ITERATIVE depth-first search. You MUST use a stack-based approach, NOT recursion. Follow this EXACT pattern:\nfrom collections import defaultdict\nclass Graph:\n    def __init__(self):\n        self.graph = defaultdict(list)\n    def add_edge(self, u, v):\n        self.graph[u].append(v)\n    def dfs(self, start):\n        visited = set()\n        stack = [start]\n        result = []\n        while stack:\n            vertex = stack.pop()\n            if vertex not in visited:\n                visited.add(vertex)\n                result.append(vertex)\n                for neighbor in reversed(self.graph[vertex]):\n                    if neighbor not in visited:\n                        stack.append(neighbor)\n        return result\n\ng = Graph()\ng.add_edge(0, 1)\ng.add_edge(0, 2)\ng.add_edge(1, 2)\ng.add_edge(2, 3)\nprint(g.dfs(0))\n\nDo NOT use recursion. Use a while loop with stack.pop() and stack.append(). ALL variables must be defined before use.]"),
+       "\n\n[IMPORTANT: The input specifies ITERATIVE depth-first search. You MUST use a stack-based approach, NOT recursion. Follow this EXACT pattern:\n\(dfsIterativeTemplate)\nDo NOT use recursion. Use a while loop with stack.pop() and stack.append(). ALL variables must be defined before use.]"),
       (["depth", "stack"],
-       "\n\n[IMPORTANT: The input specifies stack-based depth-first search. You MUST use a stack-based approach, NOT recursion. Follow this EXACT pattern:\nfrom collections import defaultdict\nclass Graph:\n    def __init__(self):\n        self.graph = defaultdict(list)\n    def add_edge(self, u, v):\n        self.graph[u].append(v)\n    def dfs(self, start):\n        visited = set()\n        stack = [start]\n        result = []\n        while stack:\n            vertex = stack.pop()\n            if vertex not in visited:\n                visited.add(vertex)\n                result.append(vertex)\n                for neighbor in reversed(self.graph[vertex]):\n                    if neighbor not in visited:\n                        stack.append(neighbor)\n        return result\n\ng = Graph()\ng.add_edge(0, 1)\ng.add_edge(0, 2)\ng.add_edge(1, 2)\ng.add_edge(2, 3)\nprint(g.dfs(0))\n\nDo NOT use recursion. Use a while loop with stack.pop() and stack.append(). ALL variables must be defined before use.]"),
+       "\n\n[IMPORTANT: The input specifies stack-based depth-first search. You MUST use a stack-based approach, NOT recursion. Follow this EXACT pattern:\n\(dfsIterativeTemplate)\nDo NOT use recursion. Use a while loop with stack.pop() and stack.append(). ALL variables must be defined before use.]"),
+      
+      // Recursive DFS patterns
       (["dfs"],
-       "\n\n[IMPORTANT: Follow this EXACT pattern for a complete DFS:\nfrom collections import defaultdict\nclass Graph:\n    def __init__(self):\n        self.graph = defaultdict(list)\n    def add_edge(self, u, v):\n        self.graph[u].append(v)\n    def dfs(self, start):\n        visited = set()\n        result = []\n        self._dfs_helper(start, visited, result)\n        return result\n    def _dfs_helper(self, vertex, visited, result):\n        visited.add(vertex)\n        result.append(vertex)\n        for neighbor in self.graph[vertex]:\n            if neighbor not in visited:\n                self._dfs_helper(neighbor, visited, result)\n\ng = Graph()\ng.add_edge(0, 1)\ng.add_edge(0, 2)\ng.add_edge(1, 2)\ng.add_edge(2, 3)\nprint(g.dfs(0))\n\nAdapt this pattern to match the input code's logic. ALL variables must be defined before use. Do NOT create standalone functions that reference undefined global variables.]"),
+       "\n\n[IMPORTANT: Follow this EXACT pattern for a complete DFS:\n\(dfsRecursiveTemplate)\nAdapt this pattern to match the input code's logic. ALL variables must be defined before use. Do NOT create standalone functions that reference undefined global variables.]"),
       (["depth"],
-       "\n\n[IMPORTANT: Follow this EXACT pattern for a complete DFS:\nfrom collections import defaultdict\nclass Graph:\n    def __init__(self):\n        self.graph = defaultdict(list)\n    def add_edge(self, u, v):\n        self.graph[u].append(v)\n    def dfs(self, start):\n        visited = set()\n        result = []\n        self._dfs_helper(start, visited, result)\n        return result\n    def _dfs_helper(self, vertex, visited, result):\n        visited.add(vertex)\n        result.append(vertex)\n        for neighbor in self.graph[vertex]:\n            if neighbor not in visited:\n                self._dfs_helper(neighbor, visited, result)\n\ng = Graph()\ng.add_edge(0, 1)\ng.add_edge(0, 2)\ng.add_edge(1, 2)\ng.add_edge(2, 3)\nprint(g.dfs(0))\n\nAdapt this pattern to match the input code's logic. ALL variables must be defined before use. Do NOT create standalone functions that reference undefined global variables.]"),
+       "\n\n[IMPORTANT: Follow this EXACT pattern for a complete DFS:\n\(dfsRecursiveTemplate)\nAdapt this pattern to match the input code's logic. ALL variables must be defined before use. Do NOT create standalone functions that reference undefined global variables.]"),
+      
+      // Generic graph patterns
       (["graph", "traversal"],
        "\n\n[IMPORTANT: This is a graph algorithm. You MUST include a complete Graph class with __init__ that initializes self.graph = defaultdict(list), an add_edge method, and the traversal method. Add example edges and call the traversal. ALL variables must be defined before use.]"),
       (["adjacency"],
        "\n\n[IMPORTANT: This is a graph algorithm. You MUST include a complete Graph class with __init__ that initializes self.graph = defaultdict(list), an add_edge method, and any traversal methods. Add example edges and demonstrate usage. ALL variables must be defined before use.]"),
+      
+      // Floyd-Warshall patterns
       (["floyd", "warshall"],
-       "\n\n[IMPORTANT: This is Floyd-Warshall all-pairs shortest path. Do NOT use a class or defaultdict. Use only plain 2D lists. Follow this EXACT pattern:\ndef floyd_warshall(graph):\n    n = len(graph)\n    dist = [row[:] for row in graph]\n    for k in range(n):\n        for i in range(n):\n            for j in range(n):\n                if dist[i][k] + dist[k][j] < dist[i][j]:\n                    dist[i][j] = dist[i][k] + dist[k][j]\n    return dist\n\ngraph = [[0, 3, float('inf'), 7], [8, 0, 2, float('inf')], [5, float('inf'), 0, 1], [2, float('inf'), float('inf'), 0]]\nresult = floyd_warshall(graph)\nfor row in result:\n    print(row)\n\nDo NOT use copy.deepcopy(). Copy with: dist = [row[:] for row in graph]. Print each row separately.]"),
+       "\n\n[IMPORTANT: This is Floyd-Warshall all-pairs shortest path. Do NOT use a class or defaultdict. Use only plain 2D lists. Follow this EXACT pattern:\n\(floydWarshallTemplate)\nDo NOT use copy.deepcopy(). Copy with: dist = [row[:] for row in graph]. Print each row separately.]"),
       (["all", "pairs", "shortest"],
-       "\n\n[IMPORTANT: This is an all-pairs shortest path algorithm. Do NOT use a class or defaultdict. Use only plain 2D lists. Follow this EXACT pattern:\ndef floyd_warshall(graph):\n    n = len(graph)\n    dist = [row[:] for row in graph]\n    for k in range(n):\n        for i in range(n):\n            for j in range(n):\n                if dist[i][k] + dist[k][j] < dist[i][j]:\n                    dist[i][j] = dist[i][k] + dist[k][j]\n    return dist\n\ngraph = [[0, 3, float('inf'), 7], [8, 0, 2, float('inf')], [5, float('inf'), 0, 1], [2, float('inf'), float('inf'), 0]]\nresult = floyd_warshall(graph)\nfor row in result:\n    print(row)\n\nDo NOT use copy.deepcopy(). Copy with: dist = [row[:] for row in graph]. Print each row separately.]"),
+       "\n\n[IMPORTANT: This is an all-pairs shortest path algorithm. Do NOT use a class or defaultdict. Use only plain 2D lists. Follow this EXACT pattern:\n\(floydWarshallTemplate)\nDo NOT use copy.deepcopy(). Copy with: dist = [row[:] for row in graph]. Print each row separately.]"),
     ]
     
     let basePrompt = """
@@ -387,55 +408,5 @@ actor PythonTranslator {
     }
     
     return basePrompt
-  }
-  
-  private func translateInChunks(_ input: String, maxLength: Int) async throws -> String {
-    let lines = input.components(separatedBy: .newlines)
-    var chunks: [String] = []
-    var currentChunk = ""
-    
-    for line in lines {
-      let testChunk = currentChunk.isEmpty ? line : currentChunk + "\n" + line
-      
-      if testChunk.count > maxLength && !currentChunk.isEmpty {
-        chunks.append(currentChunk)
-        currentChunk = line
-      } else {
-        currentChunk = testChunk
-      }
-    }
-    
-    if !currentChunk.isEmpty {
-      chunks.append(currentChunk)
-    }
-    
-    var finalChunks: [String] = []
-    for chunk in chunks {
-      if chunk.count > maxLength {
-        var start = chunk.startIndex
-        while start < chunk.endIndex {
-          let end = chunk.index(start, offsetBy: maxLength, limitedBy: chunk.endIndex) ?? chunk.endIndex
-          finalChunks.append(String(chunk[start..<end]))
-          start = end
-        }
-      } else {
-        finalChunks.append(chunk)
-      }
-    }
-    
-    var translations: [String] = []
-    for (index, chunk) in finalChunks.enumerated() {
-      print("Translating chunk \(index + 1)/\(finalChunks.count)...")
-      let prompt = buildPrompt(for: chunk)
-      let result = try await session!.respond(to: prompt)
-      let content = result.content.trimmingCharacters(in: .whitespacesAndNewlines)
-      
-      if content != "NOT_CODE" {
-        translations.append(content)
-      }
-    }
-    
-    return translations
-      .joined(separator: "\n")
   }
 }

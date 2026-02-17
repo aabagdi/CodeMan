@@ -40,6 +40,24 @@ struct CodeEditorView: View {
           .stroke(Color.blue.opacity(0.3), lineWidth: 2)
           .padding()
       )
+      .toolbar {
+        ToolbarItemGroup(placement: .keyboard) {
+          ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 16) {
+              Button("⇥") { insertText("    ") }
+              Button("( )") { insertPaired("(", ")") }
+              Button("[ ]") { insertPaired("[", "]") }
+              Button("{ }") { insertPaired("{", "}") }
+              Button(":") { insertText(":") }
+              Button("\"\"") { insertPaired("\"", "\"") }
+              Button("=") { insertText("=") }
+              Button("#") { insertText("#") }
+              Button("_") { insertText("_") }
+            }
+            .fontDesign(.monospaced)
+          }
+        }
+      }
       .onAppear {
         if !isInitialized, let translation {
           text = highlight(translation.translatedCode ?? "")
@@ -117,5 +135,37 @@ struct CodeEditorView: View {
   
   func highlight(_ code: String) -> AttributedString {
     CodeHighlighter.shared.highlight(code, colorScheme: colorScheme)
+  }
+  
+  private func insertText(_ newText: String) {
+    let insertionIndex: AttributedString.Index
+    
+    switch selection.indices(in: text) {
+    case .insertionPoint(let index):
+      insertionIndex = index
+    case .ranges(let rangeSet):
+      insertionIndex = rangeSet.ranges.last?.upperBound ?? text.endIndex
+    }
+    
+    text.insert(AttributedString(newText), at: insertionIndex)
+    
+    let newIndex = text.index(insertionIndex, offsetByCharacters: newText.count)
+    selection = AttributedTextSelection(insertionPoint: newIndex)
+  }
+  
+  private func insertPaired(_ open: String, _ close: String) {
+    let insertionIndex: AttributedString.Index
+    
+    switch selection.indices(in: text) {
+    case .insertionPoint(let index):
+      insertionIndex = index
+    case .ranges(let rangeSet):
+      insertionIndex = rangeSet.ranges.last?.upperBound ?? text.endIndex
+    }
+    
+    text.insert(AttributedString(open + close), at: insertionIndex)
+    
+    let cursorIndex = text.index(insertionIndex, offsetByCharacters: open.count)
+    selection = AttributedTextSelection(insertionPoint: cursorIndex)
   }
 }

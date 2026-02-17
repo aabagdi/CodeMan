@@ -54,7 +54,7 @@ struct TranslationGridView: View {
         }
     }
     .searchable(text: $searchText)
-    .onChange(of: translations) {
+    .onChange(of: translations.isEmpty) {
       if translations.isEmpty {
         inDeletionMode = false
       }
@@ -107,22 +107,22 @@ struct TranslationGridView: View {
       TranslationGridItemView(translation: item, size: size)
         .jiggle(inDeletionMode)
         .overlay(alignment: .topTrailing) {
-          DeleteButtonView(isPresented: $inDeletionMode) {
+          DeleteButtonView(isPresented: inDeletionMode) {
             deleteTranslation(item)
           }
           .jiggle(inDeletionMode)
           .offset(x: 8, y: -8)
         }
-        .onTapGesture {
-          if inDeletionMode {
-            inDeletionMode = false
-          } else {
-            selectedTranslationID = item.id
-          }
-        }
-        .onLongPressGesture {
-          inDeletionMode = true
-        }
+        .onTapGesture { gridItemTapped(item) }
+        .onLongPressGesture { inDeletionMode = true }
+    }
+    
+    private func gridItemTapped(_ item: Translation) {
+      if inDeletionMode {
+        inDeletionMode = false
+      } else {
+        selectedTranslationID = item.id
+      }
     }
     
     private func deleteTranslation(_ item: Translation) {
@@ -136,22 +136,22 @@ struct TranslationGridView: View {
     }
     
     private var addButton: some View {
-      Button {
-        cameraID = UUID()
-        navigationPath.append(CameraNavigation.camera)
-      } label: {
+      Button { addButtonTapped() } label: {
         Image(systemName: "plus")
       }
       .disabled(inDeletionMode)
     }
     
     private var generateButton: some View {
-      Button {
-        navigationPath.append(CameraNavigation.algorithmGenerator)
-      } label: {
+      Button { navigationPath.append(CameraNavigation.algorithmGenerator) } label: {
         Image(systemName: "wand.and.stars")
       }
       .disabled(inDeletionMode)
+    }
+    
+    private func addButtonTapped() {
+      cameraID = UUID()
+      navigationPath.append(CameraNavigation.camera)
     }
     
     private var creditsButton: some View {
@@ -162,6 +162,7 @@ struct TranslationGridView: View {
     }
   
 }
+
 enum CameraNavigation: Hashable {
   case camera
   case recognition(PhotoData)
