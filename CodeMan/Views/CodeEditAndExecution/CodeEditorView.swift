@@ -120,7 +120,7 @@ struct CodeEditorView: View {
       }
   }
   
-  func saveToDatabase(translatedCode: String) async {
+  private func saveToDatabase(translatedCode: String) async {
     await withErrorReporting {
       try await database.write { db in
         try Translation
@@ -133,7 +133,7 @@ struct CodeEditorView: View {
     }
   }
   
-  func highlight(_ code: String) -> AttributedString {
+  private func highlight(_ code: String) -> AttributedString {
     CodeHighlighter.shared.highlight(code, colorScheme: colorScheme)
   }
   

@@ -8,6 +8,7 @@
 import Dependencies
 import SwiftUI
 import SQLiteData
+import TipKit
 
 @main
 struct CodeManApp: App {
@@ -17,6 +18,8 @@ struct CodeManApp: App {
     prepareDependencies {
       try! $0.bootstrapDatabase()
     }
+    
+    try? Tips.configure([.displayFrequency(.immediate)])
   }
   
   var body: some Scene {

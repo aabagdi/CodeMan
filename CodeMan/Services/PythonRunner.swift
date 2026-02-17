@@ -7,9 +7,6 @@
 
 import Foundation
 
-// PythonRunner must be @MainActor because Python's C API requires all calls
-// to happen on the same thread where Py_Initialize() was called. The GIL only
-// protects Python's internal state - it doesn't handle thread state setup.
 @MainActor
 final class PythonRunner {
   static let shared = PythonRunner()

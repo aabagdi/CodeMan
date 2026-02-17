@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SQLiteData
+import TipKit
 
 struct TranslationGridView: View {
   @State private var inDeletionMode = false
@@ -45,6 +46,7 @@ struct TranslationGridView: View {
           ToolbarItem(placement: .topBarLeading) {
             HStack {
               addButton
+                .popoverTip(CaptureTip())
               generateButton
             }
           }
@@ -94,8 +96,9 @@ struct TranslationGridView: View {
         
         ScrollView {
           LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: columns), spacing: spacing) {
-            ForEach(translations) { item in
+            ForEach(translations.enumerated(), id: \.offset) { index, item in
               gridItem(for: item, size: max(itemSize, 0))
+                .popoverTip(index == 0 ? DeleteTip() : nil)
             }
           }
           .padding(spacing)

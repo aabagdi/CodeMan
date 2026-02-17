@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import TipKit
 
 struct AlgorithmSearchView: View {
   @Binding var navigationPath: NavigationPath
@@ -121,6 +122,7 @@ struct AlgorithmSearchView: View {
           Image(systemName: "sparkles")
           Text("Generate Python Code")
             .fontWeight(.semibold)
+            .popoverTip(GenerateTip())
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 4)
