@@ -47,6 +47,9 @@ struct TranslationGridView: View {
             HStack {
               addButton
                 .popoverTip(CaptureTip())
+              
+              Divider()
+              
               generateButton
             }
           }

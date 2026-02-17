@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SQLiteData
+import TipKit
 
 struct CodeEditAndExecutionView: View {
   let translationID: Translation.ID
@@ -68,6 +69,7 @@ struct CodeEditAndExecutionView: View {
   private var portraitLayout: some View {
     VStack(spacing: 0) {
       CodeEditorView(translationID: translationID)
+        .popoverTip(EditTip())
       
       Divider()
       
@@ -91,6 +93,7 @@ struct CodeEditAndExecutionView: View {
     HStack(spacing: 0) {
       CodeEditorView(translationID: translationID)
         .frame(maxWidth: .infinity)
+        .popoverTip(EditTip())
       
       Divider()
       

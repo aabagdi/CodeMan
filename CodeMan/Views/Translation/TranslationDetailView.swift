@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import SQLiteData
+import TipKit
 
 struct TranslationDetailView: View {
   let translationID: Translation.ID
@@ -15,6 +16,14 @@ struct TranslationDetailView: View {
   @FetchOne var translation: Translation?
   
   @Environment(\.colorScheme) private var colorScheme
+  
+  private var pythonFileURL: URL {
+    let tempDir = FileManager.default.temporaryDirectory
+    let fileName = "\(translation?.title ?? "code").py"
+    let fileURL = tempDir.appendingPathComponent(fileName)
+    try? translation?.translatedCode?.write(to: fileURL, atomically: true, encoding: .utf8)
+    return fileURL
+  }
   
   init(translationID: Translation.ID) {
     self.translationID = translationID
@@ -50,13 +59,23 @@ struct TranslationDetailView: View {
             code: highlightedCode,
             backgroundColor: .green
           )
+          .popoverTip(CopyTip())
         }
         .navigationTitle(translation.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
           ToolbarItem(placement: .topBarTrailing) {
-            NavigationLink(destination: CodeEditAndExecutionView(translationID: translationID)) {
-              Text("Edit and run code")
+            HStack {
+              NavigationLink(destination: CodeEditAndExecutionView(translationID: translationID)) {
+                Image(systemName: "play.fill")
+              }
+              
+              Divider()
+              
+              ShareLink(item: pythonFileURL) {
+                Image(systemName: "square.and.arrow.up")
+                  .offset(x: -2, y: -3)
+              }
             }
           }
         }

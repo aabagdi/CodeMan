@@ -24,3 +24,15 @@ struct DeleteTip: Tip {
   var message: Text? { Text("Press and hold any item to enter delete mode!") }
   var image: Image? { Image(systemName: "trash") }
 }
+
+struct CopyTip: Tip {
+  var title: Text { Text("Copy Code") }
+  var message: Text? { Text("Copy code by holding down the code block and tapping Copy!") }
+  var image: Image? { Image(systemName: "list.clipboard") }
+}
+
+struct EditTip: Tip {
+  var title: Text { Text("Edit Code") }
+  var message: Text? { Text("Edit code by tapping on the code editor box!") }
+  var image: Image? { Image(systemName: "long.text.page.and.pencil") }
+}
