@@ -23,7 +23,9 @@ final class PythonRunner {
     let bundlePath = Bundle.main.bundlePath
     let libPath = bundlePath + "/lib"
     let pythonHome = libPath + "/python3.14"
-    let libDynload = bundlePath + "/lib-dynload"
+    
+    let frameworkPath = bundlePath + "/Frameworks/Python.framework"
+    let libDynload = frameworkPath + "/lib-dynload"
     
     setenv("PYTHONHOME", libPath, 1)
     setenv("PYTHONPATH", "\(pythonHome):\(libDynload)", 1)

@@ -11,7 +11,6 @@
 		397EF1992F3A057C007A5C8E /* Highlighter in Frameworks */ = {isa = PBXBuildFile; productRef = 397EF1982F3A057C007A5C8E /* Highlighter */; };
 		397EF1A82F3ABAAB007A5C8E /* Python.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 397EF1A12F3AB85A007A5C8E /* Python.xcframework */; };
 		397EF1A92F3ABAAB007A5C8E /* Python.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 397EF1A12F3AB85A007A5C8E /* Python.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		397EF1AC2F3ABF8E007A5C8E /* lib-dynload in CopyFiles */ = {isa = PBXBuildFile; fileRef = 397EF1AB2F3ABF8E007A5C8E /* lib-dynload */; };
 		39D4CF8C2F37F4570075B419 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = 39D4CF8B2F37F4570075B419 /* SQLiteData */; };
 /* End PBXBuildFile section */
 
@@ -33,7 +32,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 7;
 			files = (
-				397EF1AC2F3ABF8E007A5C8E /* lib-dynload in CopyFiles */,
 				390195ED2F39721A00F5E669 /* lib in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -43,7 +41,6 @@
 /* Begin PBXFileReference section */
 		390195EC2F39721A00F5E669 /* lib */ = {isa = PBXFileReference; lastKnownFileType = folder; name = lib; path = Python.xcframework/lib; sourceTree = "<group>"; };
 		397EF1A12F3AB85A007A5C8E /* Python.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = Python.xcframework; sourceTree = "<group>"; };
-		397EF1AB2F3ABF8E007A5C8E /* lib-dynload */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "lib-dynload"; path = "Python.xcframework/ios-arm64/lib-arm64/python3.14/lib-dynload"; sourceTree = "<group>"; };
 		39AB77382F3095BF007B2638 /* CodeMan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CodeMan.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -85,7 +82,6 @@
 		39AB772F2F3095BF007B2638 = {
 			isa = PBXGroup;
 			children = (
-				397EF1AB2F3ABF8E007A5C8E /* lib-dynload */,
 				397EF1A12F3AB85A007A5C8E /* Python.xcframework */,
 				390195EC2F39721A00F5E669 /* lib */,
 				39AB773A2F3095BF007B2638 /* CodeMan */,
@@ -111,8 +107,8 @@
 				39AB77342F3095BF007B2638 /* Sources */,
 				39AB77352F3095BF007B2638 /* Frameworks */,
 				39AB77362F3095BF007B2638 /* Resources */,
-				39016CEE2F396C1F00F5E669 /* Embed Frameworks */,
 				390195EB2F3971ED00F5E669 /* CopyFiles */,
+				39016CEE2F396C1F00F5E669 /* Embed Frameworks */,
 				397EF1AA2F3ABBD8007A5C8E /* ShellScript */,
 			);
 			buildRules = (
@@ -196,7 +192,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "SO_DIR=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/lib-dynload\"\n\necho \"Looking for .so files in: $SO_DIR\"\necho \"Sign identity: ${EXPANDED_CODE_SIGN_IDENTITY}\"\n\nif [ -d \"$SO_DIR\" ]; then\n    for so_file in \"$SO_DIR\"/*.so; do\n        if [ -f \"$so_file\" ]; then\n            echo \"Signing: $so_file\"\n            /usr/bin/codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY:-Apple Development}\" --timestamp=none \"$so_file\"\n        fi\n    done\n    echo \"Done signing .so files\"\nelse\n    echo \"error: lib-dynload directory not found at $SO_DIR\"\n    exit 1\nfi\n";
+			shellScript = "# Copy lib-dynload into the embedded Python.framework\nSOURCE_DIR=\"${PROJECT_DIR}/Python.xcframework/ios-arm64/lib-arm64/python3.14/lib-dynload\"\nDEST_DIR=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Frameworks/Python.framework/lib-dynload\"\n\necho \"Copying lib-dynload from: $SOURCE_DIR\"\necho \"To: $DEST_DIR\"\n\n# Create destination and copy files\nmkdir -p \"$DEST_DIR\"\ncp -R \"$SOURCE_DIR\"/*.so \"$DEST_DIR/\"\n\n# Sign all .so files\necho \"Signing .so files with: ${EXPANDED_CODE_SIGN_IDENTITY}\"\nfor so_file in \"$DEST_DIR\"/*.so; do\n    if [ -f \"$so_file\" ]; then\n        echo \"Signing: $so_file\"\n        /usr/bin/codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY:-Apple Development}\" --timestamp=none \"$so_file\"\n    fi\ndone\n\necho \"Done copying and signing lib-dynload\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
