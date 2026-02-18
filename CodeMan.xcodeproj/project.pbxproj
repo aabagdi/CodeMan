@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		390195ED2F39721A00F5E669 /* lib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 390195EC2F39721A00F5E669 /* lib */; };
 		397EF1992F3A057C007A5C8E /* Highlighter in Frameworks */ = {isa = PBXBuildFile; productRef = 397EF1982F3A057C007A5C8E /* Highlighter */; };
 		397EF1A82F3ABAAB007A5C8E /* Python.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 397EF1A12F3AB85A007A5C8E /* Python.xcframework */; };
 		397EF1A92F3ABAAB007A5C8E /* Python.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 397EF1A12F3AB85A007A5C8E /* Python.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -32,14 +31,12 @@
 			dstPath = "";
 			dstSubfolderSpec = 7;
 			files = (
-				390195ED2F39721A00F5E669 /* lib in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		390195EC2F39721A00F5E669 /* lib */ = {isa = PBXFileReference; lastKnownFileType = folder; name = lib; path = Python.xcframework/lib; sourceTree = "<group>"; };
 		397EF1A12F3AB85A007A5C8E /* Python.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = Python.xcframework; sourceTree = "<group>"; };
 		39AB77382F3095BF007B2638 /* CodeMan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CodeMan.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -83,7 +80,6 @@
 			isa = PBXGroup;
 			children = (
 				397EF1A12F3AB85A007A5C8E /* Python.xcframework */,
-				390195EC2F39721A00F5E669 /* lib */,
 				39AB773A2F3095BF007B2638 /* CodeMan */,
 				39AB77392F3095BF007B2638 /* Products */,
 			);
@@ -107,9 +103,9 @@
 				39AB77342F3095BF007B2638 /* Sources */,
 				39AB77352F3095BF007B2638 /* Frameworks */,
 				39AB77362F3095BF007B2638 /* Resources */,
+				397EF1AA2F3ABBD8007A5C8E /* ShellScript */,
 				390195EB2F3971ED00F5E669 /* CopyFiles */,
 				39016CEE2F396C1F00F5E669 /* Embed Frameworks */,
-				397EF1AA2F3ABBD8007A5C8E /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -192,7 +188,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Copy lib-dynload into the embedded Python.framework\nSOURCE_DIR=\"${PROJECT_DIR}/Python.xcframework/ios-arm64/lib-arm64/python3.14/lib-dynload\"\nDEST_DIR=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Frameworks/Python.framework/lib-dynload\"\n\necho \"Copying lib-dynload from: $SOURCE_DIR\"\necho \"To: $DEST_DIR\"\n\n# Create destination and copy files\nmkdir -p \"$DEST_DIR\"\ncp -R \"$SOURCE_DIR\"/*.so \"$DEST_DIR/\"\n\n# Sign all .so files\necho \"Signing .so files with: ${EXPANDED_CODE_SIGN_IDENTITY}\"\nfor so_file in \"$DEST_DIR\"/*.so; do\n    if [ -f \"$so_file\" ]; then\n        echo \"Signing: $so_file\"\n        /usr/bin/codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY:-Apple Development}\" --timestamp=none \"$so_file\"\n    fi\ndone\n\necho \"Done copying and signing lib-dynload\"\n";
+			shellScript = "set -e\n\n# Source the BeeWare utilities\nsource \"$PROJECT_DIR/Python.xcframework/build/utils.sh\"\n\n# Install Python standard library and convert .so files to frameworks\ninstall_python Python.xcframework\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

@@ -36,7 +36,9 @@ struct CodeEditorView: View {
       .focused($isEditorFocused)
       .fontDesign(.monospaced)
       .textInputAutocapitalization(.never)
-      .autocorrectionDisabled(true)
+      .keyboardType(.asciiCapable)
+      .autocorrectionDisabled()
+      .textContentType(.none)
       .padding()
       .overlay(
         RoundedRectangle(cornerRadius: 12)
@@ -56,7 +58,6 @@ struct CodeEditorView: View {
         .opacity(isSaving ? 1 : 0)
         .animation(.easeInOut(duration: 1.2), value: isSaving)
       }
-      
         .toolbar {
           ToolbarItemGroup(placement: .keyboard) {
             ScrollView(.horizontal, showsIndicators: false) {

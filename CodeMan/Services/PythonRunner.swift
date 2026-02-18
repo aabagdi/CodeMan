@@ -21,13 +21,11 @@ final class PythonRunner {
     guard !isInitialized else { return }
     
     let bundlePath = Bundle.main.bundlePath
-    let libPath = bundlePath + "/lib"
-    let pythonHome = libPath + "/python3.14"
+    let pythonPath = bundlePath + "/python/lib"
+    let pythonHome = pythonPath + "/python3.14"
+    let libDynload = pythonHome + "/lib-dynload"
     
-    let frameworkPath = bundlePath + "/Frameworks/Python.framework"
-    let libDynload = frameworkPath + "/lib-dynload"
-    
-    setenv("PYTHONHOME", libPath, 1)
+    setenv("PYTHONHOME", pythonPath, 1)
     setenv("PYTHONPATH", "\(pythonHome):\(libDynload)", 1)
     
     Py_Initialize()
