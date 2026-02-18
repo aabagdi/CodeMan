@@ -22,8 +22,7 @@ struct CodeEditorView: View {
   
   @State private var text: AttributedString = ""
   @State private var selection = AttributedTextSelection()
-  @State private var highlightTask: Task<Void, Never>?
-  @State private var saveTask: Task<Void, Never>?
+  @State private var debounceTask: Task<Void, Never>?
   @State private var isInitialized = false
   
   init(translationID: Translation.ID) {
@@ -89,12 +88,10 @@ struct CodeEditorView: View {
         let newPlainText = String(text.characters)
         
         if translation?.translatedCode != newPlainText {
-          highlightTask?.cancel()
-          saveTask?.cancel()
+          debounceTask?.cancel()
           
-          highlightTask = Task {
+          debounceTask = Task {
             try? await Task.sleep(for: .milliseconds(300))
-            
             guard !Task.isCancelled else { return }
             
             let cursorOffset: Int? = {
@@ -118,10 +115,8 @@ struct CodeEditorView: View {
               )
               selection = AttributedTextSelection(insertionPoint: newIndex)
             }
-          }
-          
-          saveTask = Task {
-            try? await Task.sleep(for: .milliseconds(500))
+            
+            try? await Task.sleep(for: .milliseconds(200))
             guard !Task.isCancelled else { return }
             
             await saveToDatabase(translatedCode: newPlainText)
