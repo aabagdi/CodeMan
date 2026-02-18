@@ -61,6 +61,17 @@ struct CodeEditAndExecutionView: View {
     .sensoryFeedback(.error, trigger: errorCount)
     .navigationTitle("Edit & Run")
     .navigationBarTitleDisplayMode(.inline)
+    .toolbar {
+      ToolbarItem(placement: .topBarTrailing) {
+        Button("Copy output") {
+          UIPasteboard.general.string = executionResult?.output
+        }
+        .disabled(executionResult == nil)
+      }
+    }
+    .onTapGesture {
+      self.dismissKeyboard()
+    }
     .task {
       pythonVersion = "Python " + PythonRunner.shared.getVersion()
     }

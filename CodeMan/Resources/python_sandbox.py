@@ -21,8 +21,30 @@ _user_filename = "<user_code>"    # Filename used in tracebacks
 class AllocationChecker(ast.NodeVisitor):
     """Walks the AST to detect potentially dangerous allocations before execution."""
     
-    def __init__(self):
+    def __init__(self, source_lines=None):
         self.errors = []
+        self.source_lines = source_lines or []
+        self._reported_lines = set()  # Track lines already reported to avoid duplicates
+    
+    def _get_line(self, lineno):
+        """Get the source line for a given line number."""
+        if self.source_lines and 1 <= lineno <= len(self.source_lines):
+            return self.source_lines[lineno - 1]
+        return None
+    
+    def _add_error(self, msg, lineno):
+        """Add an error message with the source line, avoiding duplicates for the same line."""
+        # Create a key to detect duplicate errors on the same line
+        key = (msg.split('(')[0].strip(), lineno)  # Use message prefix + line number
+        if key in self._reported_lines:
+            return
+        self._reported_lines.add(key)
+        
+        line = self._get_line(lineno)
+        if line:
+            self.errors.append(f"{msg}\n\n{line}")
+        else:
+            self.errors.append(msg)
     
     def _try_eval_number(self, node):
         """Try to statically evaluate a node to a number.
@@ -171,24 +193,27 @@ class AllocationChecker(ast.NodeVisitor):
             if left_seq_len is not None and right_num is not None:
                 result_size = left_seq_len * right_num
                 if result_size > _MAX_ALLOCATION_SIZE:
-                    self.errors.append(
-                        f"Line {node.lineno}: sequence multiplication would create ~{int(result_size):,} elements (max {_MAX_ALLOCATION_SIZE:,})"
+                    self._add_error(
+                        f"Sequence multiplication would create ~{int(result_size):,} elements (max {_MAX_ALLOCATION_SIZE:,})",
+                        node.lineno
                     )
             
             # big_number * [x, y]
             if right_seq_len is not None and left_num is not None:
                 result_size = right_seq_len * left_num
                 if result_size > _MAX_ALLOCATION_SIZE:
-                    self.errors.append(
-                        f"Line {node.lineno}: sequence multiplication would create ~{int(result_size):,} elements (max {_MAX_ALLOCATION_SIZE:,})"
+                    self._add_error(
+                        f"Sequence multiplication would create ~{int(result_size):,} elements (max {_MAX_ALLOCATION_SIZE:,})",
+                        node.lineno
                     )
             
         # Check for dangerously large exponentiation
         if isinstance(node.op, ast.Pow):
             result = self._try_eval_number(node)
             if result is not None and result > _MAX_LITERAL_NUMBER:
-                self.errors.append(
-                    f"Line {node.lineno}: exponentiation result exceeds maximum safe value ({_MAX_LITERAL_NUMBER:,})"
+                self._add_error(
+                    f"Exponentiation result exceeds maximum safe value ({_MAX_LITERAL_NUMBER:,})",
+                    node.lineno
                 )
             
         self.generic_visit(node)
@@ -205,8 +230,9 @@ class AllocationChecker(ast.NodeVisitor):
                 if len(node.args) == 1:
                     stop = self._try_eval_number(node.args[0])
                     if stop is not None and stop > _MAX_ALLOCATION_SIZE:
-                        self.errors.append(
-                            f"Line {node.lineno}: range() would create ~{int(stop):,} elements (max {_MAX_ALLOCATION_SIZE:,})"
+                        self._add_error(
+                            f"range() would create ~{int(stop):,} elements (max {_MAX_ALLOCATION_SIZE:,})",
+                            node.lineno
                         )
                 elif len(node.args) >= 2:
                     start = self._try_eval_number(node.args[0])
@@ -220,8 +246,9 @@ class AllocationChecker(ast.NodeVisitor):
                         try:
                             size = max(0, (stop - start + step - 1) // step) if step > 0 else max(0, (start - stop - step - 1) // (-step))
                             if size > _MAX_ALLOCATION_SIZE:
-                                self.errors.append(
-                                    f"Line {node.lineno}: range() would create ~{int(size):,} elements (max {_MAX_ALLOCATION_SIZE:,})"
+                                self._add_error(
+                                    f"range() would create ~{int(size):,} elements (max {_MAX_ALLOCATION_SIZE:,})",
+                                    node.lineno
                                 )
                         except:
                             pass
@@ -230,24 +257,27 @@ class AllocationChecker(ast.NodeVisitor):
         if func_name == 'bytearray' and len(node.args) == 1:
             size = self._try_eval_number(node.args[0])
             if size is not None and size > _MAX_ALLOCATION_SIZE:
-                self.errors.append(
-                    f"Line {node.lineno}: bytearray() would allocate ~{int(size):,} bytes (max {_MAX_ALLOCATION_SIZE:,})"
+                self._add_error(
+                    f"bytearray() would allocate ~{int(size):,} bytes (max {_MAX_ALLOCATION_SIZE:,})",
+                    node.lineno
                 )
         
         # Check math.factorial(big_number)
         if func_name == 'math.factorial' and len(node.args) == 1:
             val = self._try_eval_number(node.args[0])
             if val is not None and val > 10000:
-                self.errors.append(
-                    f"Line {node.lineno}: math.factorial({int(val)}) is too large (max 10000)"
+                self._add_error(
+                    f"math.factorial({int(val)}) is too large (max 10000)",
+                    node.lineno
                 )
         
         # Check math.comb and math.perm
         if func_name in ('math.comb', 'math.perm') and len(node.args) >= 2:
             n = self._try_eval_number(node.args[0])
             if n is not None and n > 10000:
-                self.errors.append(
-                    f"Line {node.lineno}: {func_name}({int(n)}, ...) is too large (max n=10000)"
+                self._add_error(
+                    f"{func_name}({int(n)}, ...) is too large (max n=10000)",
+                    node.lineno
                 )
         
         # Check sorted/list/tuple/set wrapping range(big)
@@ -264,8 +294,9 @@ class AllocationChecker(ast.NodeVisitor):
                         stop = self._try_eval_number(range_args[1])
                         size = (stop - start) if stop is not None else None
                     if size is not None and size > _MAX_ALLOCATION_SIZE:
-                        self.errors.append(
-                            f"Line {node.lineno}: {func_name}(range(...)) would create ~{int(size):,} elements (max {_MAX_ALLOCATION_SIZE:,})"
+                        self._add_error(
+                            f"{func_name}(range(...)) would create ~{int(size):,} elements (max {_MAX_ALLOCATION_SIZE:,})",
+                            node.lineno
                         )
             
         self.generic_visit(node)
@@ -278,8 +309,9 @@ class AllocationChecker(ast.NodeVisitor):
                 if func_name == 'range' and generator.iter.args:
                     size = self._try_eval_number(generator.iter.args[-1] if len(generator.iter.args) <= 2 else generator.iter.args[1])
                     if size is not None and size > _MAX_ALLOCATION_SIZE:
-                        self.errors.append(
-                            f"Line {node.lineno}: list comprehension over range({int(size):,}) would create too many elements"
+                        self._add_error(
+                            f"List comprehension over range({int(size):,}) would create too many elements",
+                            node.lineno
                         )
         self.generic_visit(node)
     
@@ -291,8 +323,9 @@ class AllocationChecker(ast.NodeVisitor):
                 if func_name == 'range' and generator.iter.args:
                     size = self._try_eval_number(generator.iter.args[-1] if len(generator.iter.args) <= 2 else generator.iter.args[1])
                     if size is not None and size > _MAX_ALLOCATION_SIZE:
-                        self.errors.append(
-                            f"Line {node.lineno}: set comprehension over range({int(size):,}) would create too many elements"
+                        self._add_error(
+                            f"Set comprehension over range({int(size):,}) would create too many elements",
+                            node.lineno
                         )
         self.generic_visit(node)
     
@@ -304,8 +337,9 @@ class AllocationChecker(ast.NodeVisitor):
                 if func_name == 'range' and generator.iter.args:
                     size = self._try_eval_number(generator.iter.args[-1] if len(generator.iter.args) <= 2 else generator.iter.args[1])
                     if size is not None and size > _MAX_ALLOCATION_SIZE:
-                        self.errors.append(
-                            f"Line {node.lineno}: dict comprehension over range({int(size):,}) would create too many entries"
+                        self._add_error(
+                            f"Dict comprehension over range({int(size):,}) would create too many entries",
+                            node.lineno
                         )
         self.generic_visit(node)
     
@@ -331,17 +365,20 @@ class AllocationChecker(ast.NodeVisitor):
                 # Check the right side (what we're searching in)
                 str_size = self._estimate_string_size(comparator)
                 if str_size is not None and str_size > _MAX_ALLOCATION_SIZE:
-                    self.errors.append(
-                        f"Line {node.lineno}: substring search in string of ~{int(str_size):,} chars would be too slow"
+                    self._add_error(
+                        f"Substring search in string of ~{int(str_size):,} chars would be too slow",
+                        node.lineno
                     )
         self.generic_visit(node)
 
 
-def check_code_safety(code: str) -> list[str]:
+def check_code_safety(code: str, source_lines: list = None) -> list[str]:
     """Parse and check code for potential memory/CPU issues."""
     try:
         tree = ast.parse(code)
-        checker = AllocationChecker()
+        if source_lines is None:
+            source_lines = code.splitlines()
+        checker = AllocationChecker(source_lines)
         checker.visit(tree)
         return checker.errors
     except SyntaxError:
@@ -698,6 +735,23 @@ _protected_names = {'__safe_getattr__', '__builtins__'}
 class AttributeAccessTransformer(ast.NodeTransformer):
     """Transforms attribute access to use safe getattr for dangerous attributes."""
     
+    def __init__(self, source_lines=None):
+        super().__init__()
+        self.source_lines = source_lines or []
+    
+    def _get_line(self, lineno):
+        """Get the source line for a given line number."""
+        if self.source_lines and 1 <= lineno <= len(self.source_lines):
+            return self.source_lines[lineno - 1]
+        return None
+    
+    def _make_error(self, msg, lineno):
+        """Create an error message with the source line."""
+        line = self._get_line(lineno)
+        if line:
+            return f"{msg}\n\n{line}"
+        return msg
+    
     def visit_Attribute(self, node):
         self.generic_visit(node)  # Transform children first
         
@@ -712,26 +766,26 @@ class AttributeAccessTransformer(ast.NodeTransformer):
                 )
             elif isinstance(node.ctx, (ast.Store, ast.Del)):
                 # Block assignment/deletion to dangerous attributes
-                raise SyntaxError(f"Access to '{node.attr}' is not allowed (line {node.lineno})")
+                raise SyntaxError(self._make_error(f"Access to '{node.attr}' is not allowed", node.lineno))
         return node
     
     def visit_Name(self, node):
         """Block assignment to protected sandbox names."""
         if isinstance(node.ctx, (ast.Store, ast.Del)) and node.id in _protected_names:
-            raise SyntaxError(f"Cannot modify protected name '{node.id}' (line {node.lineno})")
+            raise SyntaxError(self._make_error(f"Cannot modify protected name '{node.id}'", node.lineno))
         return node
     
     def visit_Import(self, node):
         """Block 'import builtins' which could bypass restrictions."""
         for alias in node.names:
             if alias.name == 'builtins' or alias.name.startswith('builtins.'):
-                raise SyntaxError(f"Import of 'builtins' is not allowed (line {node.lineno})")
+                raise SyntaxError(self._make_error(f"Import of 'builtins' is not allowed", node.lineno))
         return node
     
     def visit_ImportFrom(self, node):
         """Block 'from builtins import ...' which could bypass restrictions."""
         if node.module == 'builtins' or (node.module and node.module.startswith('builtins.')):
-            raise SyntaxError(f"Import from 'builtins' is not allowed (line {node.lineno})")
+            raise SyntaxError(self._make_error(f"Import from 'builtins' is not allowed", node.lineno))
         return node
 
 
@@ -1199,19 +1253,42 @@ def setup_sandbox(user_code, user_globals, timeout_seconds):
     global _timeout_seconds, _real_re_module
     _timeout_seconds = timeout_seconds
     
+    # Split source for error messages
+    source_lines = user_code.splitlines()
+    
     # Check code memory safety
-    safety_errors = check_code_safety(user_code)
+    safety_errors = check_code_safety(user_code, source_lines)
     if safety_errors:
-        raise MemoryError("Code rejected:\n" + "\n".join(safety_errors))
+        raise MemoryError("Code rejected:\n" + "\n\n".join(safety_errors))
     
     # Parse and transform AST to intercept dangerous attribute access
     try:
         tree = ast.parse(user_code)
-        transformer = AttributeAccessTransformer()
+        transformer = AttributeAccessTransformer(source_lines)
         tree = transformer.visit(tree)
         ast.fix_missing_locations(tree)
     except SyntaxError as e:
-        raise SyntaxError(str(e))
+        # Build a detailed error message with the problematic line
+        error_parts = []
+        
+        # Check if e.msg already contains the source line (from transformer errors)
+        if e.msg and "\n\n" in e.msg:
+            # Transformer already added the line, just format nicely
+            error_parts.append(f"SyntaxError: {e.msg}")
+        elif e.lineno is not None and 1 <= e.lineno <= len(source_lines):
+            error_line = source_lines[e.lineno - 1]
+            
+            # Show position info and the error
+            if e.offset is not None and e.offset > 0:
+                error_parts.append(f"SyntaxError at position {e.offset}: {e.msg}")
+            else:
+                error_parts.append(f"SyntaxError: {e.msg}")
+            
+            error_parts.append(f"\n\n{error_line}")
+        else:
+            error_parts.append(f"SyntaxError: {e.msg}")
+        
+        raise SyntaxError("".join(error_parts))
     
     # Store source in linecache so tracebacks can display it
     linecache.cache[_user_filename] = (

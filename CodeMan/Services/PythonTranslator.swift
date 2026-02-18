@@ -63,6 +63,7 @@ actor PythonTranslator {
            - For JSON, use the json module
            - For file operations, note that file I/O is NOT available
            - For networking, note that networking is NOT available
+           - For stdin, note that it's NOT available
            
            CRITICAL RULES:
            1. Translate the provided code to idiomatic Python - preserve the FUNCTIONALITY, not necessarily the structure

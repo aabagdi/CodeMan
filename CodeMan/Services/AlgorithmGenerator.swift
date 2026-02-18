@@ -33,6 +33,11 @@ actor AlgorithmGenerator {
            standard library modules not listed above (os, sys, subprocess, socket, 
            threading, multiprocessing, pathlib, glob, shutil, pickle, sqlite3, etc.).
            
+           Note that:
+           - For file operations, note that file I/O is NOT available
+           - For networking, note that networking is NOT available
+           - For stdin, note that it's NOT available
+           
            CRITICAL RULES:
            1. Generate clean, well-documented Python code
            2. Use snake_case for variables and functions

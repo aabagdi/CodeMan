@@ -24,6 +24,7 @@ struct CodeEditorView: View {
   @State private var selection = AttributedTextSelection()
   @State private var textVersion = 0
   @State private var isInitialized = false
+  @State private var isSaving = false
   
   init(translationID: Translation.ID) {
     self.translationID = translationID
@@ -42,91 +43,108 @@ struct CodeEditorView: View {
           .stroke(Color.blue.opacity(0.3), lineWidth: 2)
           .padding()
       )
-      .toolbar {
-        ToolbarItemGroup(placement: .keyboard) {
-          ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
-              Group {
-                Button("⇥") { insertText("    ") }
-                Button("()") { insertPaired("(", ")") }
-                Button("[]") { insertPaired("[", "]") }
-                Button("{}") { insertPaired("{", "}") }
-                Button(":") { insertText(":") }
-                Button("\"\"") { insertPaired("\"", "\"") }
-                Button("=") { insertText("=") }
-                Button("#") { insertText("#") }
-                Button("_") { insertText("_") }
+      .overlay(alignment: .topTrailing) {
+        HStack {
+          Image(systemName: "checkmark.circle.fill")
+          Text("Code Saved!")
+        }
+        .font(.caption)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial, in: Capsule())
+        .padding(24)
+        .opacity(isSaving ? 1 : 0)
+        .animation(.easeInOut(duration: 1.2), value: isSaving)
+      }
+      
+        .toolbar {
+          ToolbarItemGroup(placement: .keyboard) {
+            ScrollView(.horizontal, showsIndicators: false) {
+              HStack(spacing: 16) {
+                Group {
+                  Button("⇥") { insertText("    ") }
+                  Button("()") { insertPaired("(", ")") }
+                  Button("[]") { insertPaired("[", "]") }
+                  Button("{}") { insertPaired("{", "}") }
+                  Button(":") { insertText(":") }
+                  Button("\"\"") { insertPaired("\"", "\"") }
+                  Button("=") { insertText("=") }
+                  Button("#") { insertText("#") }
+                  Button("_") { insertText("_") }
+                }
+                .fontDesign(.monospaced)
+                
+                Divider()
+                
+                Button("Done") { dismissKeyboard() }
               }
-              .fontDesign(.monospaced)
-              
-              Divider()
-              
-              Button("Done") { dismissKeyboard() }
+              .padding(.horizontal)
             }
-            .padding(.horizontal)
           }
         }
-      }
-      .onAppear {
-        if !isInitialized, let translation {
-          text = highlight(translation.translatedCode ?? "")
-          isInitialized = true
-        }
-      }
-      .onChange(of: translation) {
-        if !isInitialized, let translation {
-          text = highlight(translation.translatedCode ?? "")
-          isInitialized = true
-        }
-      }
-      .onChange(of: colorScheme) {
-        let plainText = String(text.characters)
-        text = highlight(plainText)
-      }
-      .onChange(of: text) {
-        guard isInitialized else { return }
-        if translation?.translatedCode != String(text.characters) {
-          textVersion += 1
-        }
-      }
-      .task(id: textVersion) {
-        guard isInitialized, textVersion > 0 else { return }
-        
-        let plainText = String(text.characters)
-        
-        try? await Task.sleep(for: .milliseconds(300))
-        guard !Task.isCancelled else { return }
-        
-        let cursorOffset: Int? = {
-          switch selection.indices(in: text) {
-          case .insertionPoint(let index):
-            return text.characters.distance(from: text.startIndex, to: index)
-          case .ranges(let rangeSet):
-            guard let lastRange = rangeSet.ranges.last else { return nil }
-            return text.characters.distance(from: text.startIndex, to: lastRange.upperBound)
+        .onAppear {
+          if !isInitialized, let translation {
+            text = highlight(translation.translatedCode ?? "")
+            isInitialized = true
           }
-        }()
-        
-        let highlighted = highlight(plainText)
-        text = highlighted
-        
-        if let offset = cursorOffset {
-          let clampedOffset = min(offset, highlighted.characters.count)
-          let newIndex = highlighted.characters.index(
-            highlighted.startIndex,
-            offsetBy: clampedOffset
-          )
-          selection = AttributedTextSelection(insertionPoint: newIndex)
         }
-        
-        try? await Task.sleep(for: .milliseconds(200))
-        guard !Task.isCancelled else { return }
-        
-        await saveToDatabase(translatedCode: plainText)
-      }
+        .onChange(of: translation) {
+          if !isInitialized, let translation {
+            text = highlight(translation.translatedCode ?? "")
+            isInitialized = true
+          }
+        }
+        .onChange(of: colorScheme) {
+          let plainText = String(text.characters)
+          text = highlight(plainText)
+        }
+        .onChange(of: text) {
+          guard isInitialized else { return }
+          if translation?.translatedCode != String(text.characters) {
+            textVersion += 1
+          }
+        }
+        .task(id: textVersion) {
+          guard isInitialized, textVersion > 0 else { return }
+          
+          let plainText = String(text.characters)
+          
+          try? await Task.sleep(for: .milliseconds(300))
+          guard !Task.isCancelled else { return }
+          
+          guard translation?.translatedCode != plainText else { return }
+          
+          let cursorOffset: Int? = {
+            switch selection.indices(in: text) {
+            case .insertionPoint(let index):
+              return text.characters.distance(from: text.startIndex, to: index)
+            case .ranges(let rangeSet):
+              guard let lastRange = rangeSet.ranges.last else { return nil }
+              return text.characters.distance(from: text.startIndex, to: lastRange.upperBound)
+            }
+          }()
+          
+          let highlighted = highlight(plainText)
+          text = highlighted
+          
+          if let offset = cursorOffset {
+            let clampedOffset = min(offset, highlighted.characters.count)
+            let newIndex = highlighted.characters.index(
+              highlighted.startIndex,
+              offsetBy: clampedOffset
+            )
+            selection = AttributedTextSelection(insertionPoint: newIndex)
+          }
+          
+          try? await Task.sleep(for: .milliseconds(200))
+          guard !Task.isCancelled else { return }
+          
+          await saveToDatabase(translatedCode: plainText)
+        }
   }
   
   private func saveToDatabase(translatedCode: String) async {
+    isSaving = true
     await withErrorReporting {
       try await database.write { db in
         try Translation
@@ -137,6 +155,8 @@ struct CodeEditorView: View {
           .execute(db)
       }
     }
+    
+    isSaving = false
   }
   
   private func highlight(_ code: String) -> AttributedString {

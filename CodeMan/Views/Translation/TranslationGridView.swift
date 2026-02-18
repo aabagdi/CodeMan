@@ -8,6 +8,7 @@
 import SwiftUI
 import SQLiteData
 import TipKit
+import FoundationModels
 
 struct TranslationGridView: View {
   @State private var inDeletionMode = false
@@ -15,6 +16,8 @@ struct TranslationGridView: View {
   @State private var cameraID = UUID()
   @State private var navigationPath = NavigationPath()
   @State private var searchText = ""
+  @State private var showingUnavailableAlert = false
+  @State private var unavailableMessage = ""
   
   @FetchAll(Translation.none, animation: .default) var translations: [Translation]
   
@@ -77,6 +80,31 @@ struct TranslationGridView: View {
           )
         }
       }
+    }
+    .alert("Apple Intelligence Unavailable", isPresented: $showingUnavailableAlert) {
+      Button("OK", role: .cancel) { }
+    } message: {
+      Text(unavailableMessage)
+    }
+  }
+  
+  private func checkAppleIntelligenceAvailability() -> Bool {
+    switch SystemLanguageModel.default.availability {
+    case .available:
+      return true
+    case .unavailable(let reason):
+      switch reason {
+      case .deviceNotEligible:
+        unavailableMessage = "This device doesn't support Apple Intelligence."
+      case .appleIntelligenceNotEnabled:
+        unavailableMessage = "Please enable Apple Intelligence in Settings to use this feature."
+      case .modelNotReady:
+        unavailableMessage = "Apple Intelligence is still downloading. Please try again later."
+      @unknown default:
+        unavailableMessage = "Apple Intelligence is currently unavailable."
+      }
+      showingUnavailableAlert = true
+      return false
     }
   }
     
@@ -149,15 +177,21 @@ struct TranslationGridView: View {
     }
     
     private var generateButton: some View {
-      Button { navigationPath.append(CameraNavigation.algorithmGenerator) } label: {
+      Button {
+        if checkAppleIntelligenceAvailability() {
+          navigationPath.append(CameraNavigation.algorithmGenerator)
+        }
+      } label: {
         Image(systemName: "wand.and.stars")
       }
       .disabled(inDeletionMode)
     }
     
     private func addButtonTapped() {
-      cameraID = UUID()
-      navigationPath.append(CameraNavigation.camera)
+      if checkAppleIntelligenceAvailability() {
+        cameraID = UUID()
+        navigationPath.append(CameraNavigation.camera)
+      }
     }
     
     private var creditsButton: some View {

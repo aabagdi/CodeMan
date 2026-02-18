@@ -49,7 +49,35 @@ def execute_code(compiled_code, user_globals, timeout_seconds):
         _exec_error = str(e)
     except Exception as e:
         import traceback
-        _exec_error = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+        import linecache
+        
+        # Build a compact error message without caret alignment
+        error_parts = []
+        exc_type = type(e).__name__
+        exc_msg = str(e)
+        
+        # Walk the traceback to find user code frames
+        tb = e.__traceback__
+        user_frames = []
+        while tb is not None:
+            frame = tb.tb_frame
+            filename = frame.f_code.co_filename
+            # Only include frames from user code
+            if filename == "<user_code>":
+                lineno = tb.tb_lineno
+                line = linecache.getline(filename, lineno).strip()
+                user_frames.append((lineno, line))
+            tb = tb.tb_next
+        
+        # Format the error with position info
+        if user_frames:
+            # Show error location(s)
+            for lineno, line in user_frames:
+                error_parts.append(f"Line {lineno}: {line}")
+            error_parts.append("")
+        
+        error_parts.append(f"{exc_type}: {exc_msg}")
+        _exec_error = "\n".join(error_parts)
     finally:
         sys.settrace(None)
         sys.stdout = _old_stdout
