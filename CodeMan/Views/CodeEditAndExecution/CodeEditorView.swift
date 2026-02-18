@@ -18,6 +18,8 @@ struct CodeEditorView: View {
   
   @Environment(\.colorScheme) private var colorScheme
   
+  @FocusState private var isEditorFocused: Bool
+  
   @State private var text: AttributedString = ""
   @State private var selection = AttributedTextSelection()
   @State private var highlightTask: Task<Void, Never>?
@@ -31,6 +33,7 @@ struct CodeEditorView: View {
   
   var body: some View {
     TextEditor(text: $text, selection: $selection)
+      .focused($isEditorFocused)
       .fontDesign(.monospaced)
       .textInputAutocapitalization(.never)
       .autocorrectionDisabled(true)
@@ -44,17 +47,24 @@ struct CodeEditorView: View {
         ToolbarItemGroup(placement: .keyboard) {
           ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
-              Button("⇥") { insertText("    ") }
-              Button("( )") { insertPaired("(", ")") }
-              Button("[ ]") { insertPaired("[", "]") }
-              Button("{ }") { insertPaired("{", "}") }
-              Button(":") { insertText(":") }
-              Button("\"\"") { insertPaired("\"", "\"") }
-              Button("=") { insertText("=") }
-              Button("#") { insertText("#") }
-              Button("_") { insertText("_") }
+              Group {
+                Button("⇥") { insertText("    ") }
+                Button("()") { insertPaired("(", ")") }
+                Button("[]") { insertPaired("[", "]") }
+                Button("{}") { insertPaired("{", "}") }
+                Button(":") { insertText(":") }
+                Button("\"\"") { insertPaired("\"", "\"") }
+                Button("=") { insertText("=") }
+                Button("#") { insertText("#") }
+                Button("_") { insertText("_") }
+              }
+              .fontDesign(.monospaced)
+              
+              Divider()
+              
+              Button("Done") { dismissKeyboard() }
             }
-            .fontDesign(.monospaced)
+            .padding(.horizontal)
           }
         }
       }
@@ -167,5 +177,12 @@ struct CodeEditorView: View {
     
     let cursorIndex = text.index(insertionIndex, offsetByCharacters: open.count)
     selection = AttributedTextSelection(insertionPoint: cursorIndex)
+  }
+  
+  private func dismissKeyboard() {
+    if isEditorFocused {
+      UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+      isEditorFocused = false
+    }
   }
 }

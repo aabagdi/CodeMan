@@ -46,7 +46,7 @@ struct CodeBlockView: View {
         Button {
           UIPasteboard.general.string = codeString
         } label: {
-          Label("Copy", systemImage: "doc.on.doc")
+          Label("Copy", systemImage: "document.on.document")
         }
       }
     }

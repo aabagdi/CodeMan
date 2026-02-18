@@ -28,7 +28,7 @@ struct DeleteTip: Tip {
 struct CopyTip: Tip {
   var title: Text { Text("Copy Code") }
   var message: Text? { Text("Copy code by holding down the code block and tapping Copy!") }
-  var image: Image? { Image(systemName: "list.clipboard") }
+  var image: Image? { Image(systemName: "document.on.document") }
 }
 
 struct EditTip: Tip {
