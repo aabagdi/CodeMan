@@ -22,7 +22,7 @@ struct CodeEditorView: View {
   
   @State private var text: AttributedString = ""
   @State private var selection = AttributedTextSelection()
-  @State private var debounceTask: Task<Void, Never>?
+  @State private var textVersion = 0
   @State private var isInitialized = false
   
   init(translationID: Translation.ID) {
@@ -85,43 +85,44 @@ struct CodeEditorView: View {
       }
       .onChange(of: text) {
         guard isInitialized else { return }
-        let newPlainText = String(text.characters)
-        
-        if translation?.translatedCode != newPlainText {
-          debounceTask?.cancel()
-          
-          debounceTask = Task {
-            try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled else { return }
-            
-            let cursorOffset: Int? = {
-              switch selection.indices(in: text) {
-              case .insertionPoint(let index):
-                return text.characters.distance(from: text.startIndex, to: index)
-              case .ranges(let rangeSet):
-                guard let lastRange = rangeSet.ranges.last else { return nil }
-                return text.characters.distance(from: text.startIndex, to: lastRange.upperBound)
-              }
-            }()
-            
-            let highlighted = highlight(newPlainText)
-            text = highlighted
-            
-            if let offset = cursorOffset {
-              let clampedOffset = min(offset, highlighted.characters.count)
-              let newIndex = highlighted.characters.index(
-                highlighted.startIndex,
-                offsetBy: clampedOffset
-              )
-              selection = AttributedTextSelection(insertionPoint: newIndex)
-            }
-            
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled else { return }
-            
-            await saveToDatabase(translatedCode: newPlainText)
-          }
+        if translation?.translatedCode != String(text.characters) {
+          textVersion += 1
         }
+      }
+      .task(id: textVersion) {
+        guard isInitialized, textVersion > 0 else { return }
+        
+        let plainText = String(text.characters)
+        
+        try? await Task.sleep(for: .milliseconds(300))
+        guard !Task.isCancelled else { return }
+        
+        let cursorOffset: Int? = {
+          switch selection.indices(in: text) {
+          case .insertionPoint(let index):
+            return text.characters.distance(from: text.startIndex, to: index)
+          case .ranges(let rangeSet):
+            guard let lastRange = rangeSet.ranges.last else { return nil }
+            return text.characters.distance(from: text.startIndex, to: lastRange.upperBound)
+          }
+        }()
+        
+        let highlighted = highlight(plainText)
+        text = highlighted
+        
+        if let offset = cursorOffset {
+          let clampedOffset = min(offset, highlighted.characters.count)
+          let newIndex = highlighted.characters.index(
+            highlighted.startIndex,
+            offsetBy: clampedOffset
+          )
+          selection = AttributedTextSelection(insertionPoint: newIndex)
+        }
+        
+        try? await Task.sleep(for: .milliseconds(200))
+        guard !Task.isCancelled else { return }
+        
+        await saveToDatabase(translatedCode: plainText)
       }
   }
   
