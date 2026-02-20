@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/sqlite-data",
       "state" : {
-        "revision" : "5de18896e7a0358084bb4e3c83f7227500ba029b",
-        "version" : "1.5.2"
+        "revision" : "65502acdb033ec8025a0bcc443abf2f4ca0598f9",
+        "version" : "1.6.0"
       }
     },
     {
@@ -123,8 +123,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-structured-queries",
       "state" : {
-        "revision" : "d8163b3a98f3c8434c4361e85126db449d84bc66",
-        "version" : "0.30.0"
+        "revision" : "20db4a2a446f51e67e1207d54a23ad0a03471a7b",
+        "version" : "0.31.0"
       }
     },
     {
@@ -141,8 +141,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/xctest-dynamic-overlay",
       "state" : {
-        "revision" : "34e463e98ab8541c604af706c99bed7160f5ec70",
-        "version" : "1.8.1"
+        "revision" : "dfd70507def84cb5fb821278448a262c6ff2bbad",
+        "version" : "1.9.0"
       }
     }
   ],

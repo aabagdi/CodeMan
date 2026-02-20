@@ -151,7 +151,7 @@ struct CodeEditorView: View {
         try Translation
           .find(translationID)
           .update {
-            $0.translatedCode = translatedCode
+            $0.translatedCode = #bind(translatedCode)
           }
           .execute(db)
       }
