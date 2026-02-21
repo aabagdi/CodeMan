@@ -62,7 +62,7 @@ struct CameraView: View {
       }
     }
     .alert(
-      "The camera is not starting, try restarting the app or make sure camera permissions for CodeMan are turned on.",
+      "The camera is not starting, try restarting the app or make sure camera permissions for AlgorithmMan are turned on.",
       isPresented: $showCameraError
     ) { }
       .task {
@@ -73,9 +73,9 @@ struct CameraView: View {
       }
       .task(id: model.photoTaken != nil) {
         if model.photoTaken != nil {
-          await model.pausePreview()
+          model.pausePreview()
         } else {
-          await model.resumePreview()
+          model.resumePreview()
         }
       }
       .task(id: pickerItem) {
@@ -85,7 +85,7 @@ struct CameraView: View {
           return
         }
         
-        await model.pausePreview()
+        model.pausePreview()
         model.photoTaken = PhotoData(
           image: Image(uiImage: uiImage),
           imageData: data,
@@ -97,12 +97,23 @@ struct CameraView: View {
   }
   
   func getLatestImage(targetSize: CGSize = CGSize(width: 120, height: 120)) async -> UIImage? {
+    let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+    if status == .notDetermined {
+      let newStatus = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+      guard newStatus == .authorized || newStatus == .limited else {
+        return nil
+      }
+    } else if status == .denied || status == .restricted {
+      return nil
+    }
+    
     let fetchOptions = PHFetchOptions()
-    fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
+    fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+    fetchOptions.fetchLimit = 1
     
     let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
     
-    guard let lastAsset = fetchResult.lastObject else {
+    guard let lastAsset = fetchResult.firstObject else {
       return nil
     }
     
@@ -113,8 +124,8 @@ struct CameraView: View {
     return await withCheckedContinuation { continuation in
       PHImageManager.default().requestImage(
         for: lastAsset,
-        targetSize: PHImageManagerMaximumSize,
-        contentMode: .aspectFit,
+        targetSize: targetSize,
+        contentMode: .aspectFill,
         options: options
       ) { image, _ in
         continuation.resume(returning: image)

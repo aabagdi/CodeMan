@@ -9,6 +9,20 @@ import SwiftUI
 import SQLiteData
 import TipKit
 
+private struct KeyboardDismissingView: UIViewControllerRepresentable {
+  func makeUIViewController(context: Context) -> KeyboardDismissingViewController {
+    KeyboardDismissingViewController()
+  }
+  func updateUIViewController(_ uiViewController: KeyboardDismissingViewController, context: Context) {}
+}
+
+private class KeyboardDismissingViewController: UIViewController {
+  override func viewWillDisappear(_ animated: Bool) {
+    super.viewWillDisappear(animated)
+    view.window?.endEditing(true)
+  }
+}
+
 struct CodeEditAndExecutionView: View {
   let translationID: Translation.ID
   
@@ -57,6 +71,7 @@ struct CodeEditAndExecutionView: View {
         }
       }
     }
+    .ignoresSafeArea(.keyboard)
     .sensoryFeedback(.success, trigger: successCount)
     .sensoryFeedback(.error, trigger: errorCount)
     .navigationTitle("Edit & Run")
@@ -69,10 +84,14 @@ struct CodeEditAndExecutionView: View {
         .disabled(executionResult == nil)
       }
     }
+    .background {
+      KeyboardDismissingView()
+        .frame(width: 0, height: 0)
+    }
     .onTapGesture {
       self.dismissKeyboard()
     }
-    .task {
+    .onAppear {
       pythonVersion = "Python " + PythonRunner.shared.getVersion()
     }
   }

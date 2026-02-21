@@ -47,7 +47,7 @@ struct PreviewView: View {
     .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
       handleOrientationChange()
     }
-    .task { await onTask() }
+    .onAppear { setInitialOrientation() }
   }
   
   private var previewRotationAngle: Angle {
@@ -72,12 +72,12 @@ struct PreviewView: View {
     }
   }
   
-  private func onTask() async {
+  private func setInitialOrientation() {
     UIDevice.current.beginGeneratingDeviceOrientationNotifications()
     let currentOrientation = UIDevice.current.orientation
     if currentOrientation.isValidInterfaceOrientation {
       deviceOrientation = currentOrientation
-      await model.camera.updateDeviceOrientation(currentOrientation)
+      model.camera.updateDeviceOrientation(currentOrientation)
     }
   }
   
@@ -88,9 +88,7 @@ struct PreviewView: View {
     withAnimation(.easeInOut(duration: 0.3)) {
       deviceOrientation = newOrientation
     }
-    Task {
-      await model.camera.updateDeviceOrientation(newOrientation)
-    }
+    model.camera.updateDeviceOrientation(newOrientation)
   }
   
   private func handleTapToFocus(at location: CGPoint, in size: CGSize) {
@@ -102,9 +100,9 @@ struct PreviewView: View {
     focusLocation = location
     showFocusIndicator = true
     
+    model.focusCamera(at: normalizedPoint)
+    
     Task {
-      await model.focusCamera(at: normalizedPoint)
-      
       try? await Task.sleep(for: .seconds(1))
       withAnimation {
         showFocusIndicator = false

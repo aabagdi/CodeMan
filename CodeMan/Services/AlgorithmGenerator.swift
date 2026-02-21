@@ -8,7 +8,7 @@
 import Foundation
 import FoundationModels
 
-actor AlgorithmGenerator {
+struct AlgorithmGenerator {
   private let instructions: String
   
   init() {
@@ -87,12 +87,12 @@ actor AlgorithmGenerator {
     
     let session = LanguageModelSession(instructions: instructions)
     
-    let sanitized = await prompt.escapingDelimiterTags()
+    let sanitized = prompt.escapingDelimiterTags()
     let enhancedPrompt = buildPrompt(for: sanitized)
     let result = try await session.respond(to: enhancedPrompt)
     let content = result.content.trimmingCharacters(in: .whitespacesAndNewlines)
     
-    return await content
+    return content
       .strippingMarkdownCodeBlocks()
       .strippingOutputComments()
       .validatingModelOutput()

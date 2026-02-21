@@ -12,6 +12,8 @@ import TipKit
 
 @main
 struct CodeManApp: App {
+  @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+  
   init() {
     PythonRunner.shared.initialize()
     

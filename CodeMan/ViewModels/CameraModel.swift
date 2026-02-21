@@ -63,17 +63,17 @@ class CameraModel {
     return PhotoData(image: image, imageData: imageData, imageSize: imageSize)
   }
   
-  func resumePreview() async {
+  func resumePreview() {
     previewImage = nil
-    await camera.setPreviewPaused(false)
+    camera.setPreviewPaused(false)
   }
   
-  func pausePreview() async {
-    await camera.setPreviewPaused(true)
+  func pausePreview() {
+    camera.setPreviewPaused(true)
   }
   
-  func focusCamera(at point: CGPoint) async {
-    try? await camera.setFocusPoint(point)
+  func focusCamera(at point: CGPoint) {
+    try? camera.setFocusPoint(point)
   }
 }
 

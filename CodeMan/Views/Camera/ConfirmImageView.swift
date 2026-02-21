@@ -57,7 +57,18 @@ struct ConfirmImageView: View {
         .background(Color.black)
       }
     }
-
+    .onAppear {
+      AppDelegate.orientationLock = .portrait
+      guard let windowScene = UIApplication.shared.connectedScenes
+        .compactMap({ $0 as? UIWindowScene }).first else { return }
+      windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+    }
+    .onDisappear {
+      AppDelegate.orientationLock = .all
+      guard let windowScene = UIApplication.shared.connectedScenes
+        .compactMap({ $0 as? UIWindowScene }).first else { return }
+      windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .all))
+    }
   }
   
   @ViewBuilder
@@ -98,7 +109,7 @@ struct ConfirmImageView: View {
   }
   
   private func retakeButtonTapped() {
-    Task { await model.resumePreview() }
+    model.resumePreview()
     model.photoTaken = nil
   }
   

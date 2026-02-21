@@ -39,7 +39,7 @@ final class AlgorithmGeneratorViewModel {
   }
   
   func checkModelAvailability() async {
-    modelUnavailable = await !generator.isAvailable
+    modelUnavailable = !generator.isAvailable
   }
   
   func generateAlgorithm(colorScheme: ColorScheme) async {

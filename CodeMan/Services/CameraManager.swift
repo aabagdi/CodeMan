@@ -8,8 +8,10 @@
 import Foundation
 @preconcurrency import AVFoundation
 import UIKit
+import Synchronization
 
-actor CameraManager: NSObject {
+@MainActor
+class CameraManager: NSObject {
   private let session = AVCaptureSession()
   
   private var isSessionConfigured = false
@@ -43,39 +45,43 @@ actor CameraManager: NSObject {
     session.isRunning
   }
   
-  nonisolated(unsafe) private var _currentDeviceOrientation: UIDeviceOrientation = .portrait
+  private var _currentDeviceOrientation: UIDeviceOrientation = .portrait
   
   func updateDeviceOrientation(_ orientation: UIDeviceOrientation) {
     _currentDeviceOrientation = orientation
   }
   
   private let photoStreamContinuation: AsyncStream<AVCapturePhoto>.Continuation
-  nonisolated let photoStream: AsyncStream<AVCapturePhoto>
+  let photoStream: AsyncStream<AVCapturePhoto>
   
-  private nonisolated(unsafe) var _isPreviewPaused = false
+  private let _isPreviewPaused = Mutex(false)
   
-  var isPreviewPaused: Bool {
-    get { _isPreviewPaused }
-    set { _isPreviewPaused = newValue }
+  nonisolated var isPreviewPaused: Bool {
+    get { _isPreviewPaused.withLock { $0 } }
+    set { _isPreviewPaused.withLock { $0 = newValue } }
   }
-  private let previewStreamContinuation: AsyncStream<CIImage>.Continuation
-  nonisolated let previewStream: AsyncStream<CIImage>
   
-  nonisolated(unsafe) var onPreviewFrame: (@Sendable (CIImage) -> Void)?
-  nonisolated(unsafe) var onPhotoCaptured: (@Sendable (AVCapturePhoto) -> Void)?
+  private let previewStreamContinuation: AsyncStream<CIImage>.Continuation
+  let previewStream: AsyncStream<CIImage>
+  
+  private let _onPreviewFrame = Mutex<(@Sendable (CIImage) -> Void)?>(nil)
+  nonisolated var onPreviewFrame: (@Sendable (CIImage) -> Void)? {
+    get { _onPreviewFrame.withLock { $0 } }
+    set { _onPreviewFrame.withLock { $0 = newValue } }
+  }
+  
+  private let _onPhotoCaptured = Mutex<(@Sendable (AVCapturePhoto) -> Void)?>(nil)
+  nonisolated var onPhotoCaptured: (@Sendable (AVCapturePhoto) -> Void)? {
+    get { _onPhotoCaptured.withLock { $0 } }
+    set { _onPhotoCaptured.withLock { $0 = newValue } }
+  }
   
   override init() {
-    var photoContinuation: AsyncStream<AVCapturePhoto>.Continuation!
-    let photoStream = AsyncStream<AVCapturePhoto> { continuation in
-      photoContinuation = continuation
-    }
+    let (photoStream, photoContinuation) = AsyncStream.makeStream(of: AVCapturePhoto.self)
     self.photoStream = photoStream
     self.photoStreamContinuation = photoContinuation
     
-    var previewContinuation: AsyncStream<CIImage>.Continuation!
-    let previewStream = AsyncStream<CIImage> { continuation in
-      previewContinuation = continuation
-    }
+    let (previewStream, previewContinuation) = AsyncStream.makeStream(of: CIImage.self)
     self.previewStream = previewStream
     self.previewStreamContinuation = previewContinuation
     
@@ -83,6 +89,11 @@ actor CameraManager: NSObject {
     
     session.sessionPreset = .photo
     captureDevice = nil
+  }
+  
+  deinit {
+    photoStreamContinuation.finish()
+    previewStreamContinuation.finish()
   }
   
   private func ensureCaptureDevice() {
@@ -102,22 +113,22 @@ actor CameraManager: NSObject {
     
     if isSessionConfigured {
       if !session.isRunning {
-        session.startRunning()
+        await startSession(session)
       }
       return
     }
     
     try await configureCaptureSession()
-    session.startRunning()
+    await startSession(session)
   }
   
-  func stop() throws {
+  func stop() async throws {
     guard isSessionConfigured else {
       throw CameraError.sessionNotConfigured
     }
     
     if session.isRunning {
-      session.stopRunning()
+      await stopSession(session)
     }
   }
   
@@ -162,20 +173,15 @@ actor CameraManager: NSObject {
       return
     }
     
-    do {
-      try device.lockForConfiguration()
-      
-      device.focusPointOfInterest = point
-      device.focusMode = .autoFocus
-      
-      if device.isExposurePointOfInterestSupported {
-        device.exposurePointOfInterest = point
-        device.exposureMode = .autoExpose
-      }
-      
-      device.unlockForConfiguration()
-    } catch {
-      throw error
+    try device.lockForConfiguration()
+    defer { device.unlockForConfiguration() }
+    
+    device.focusPointOfInterest = point
+    device.focusMode = .autoFocus
+    
+    if device.isExposurePointOfInterestSupported {
+      device.exposurePointOfInterest = point
+      device.exposureMode = .autoExpose
     }
   }
   
@@ -238,6 +244,16 @@ actor CameraManager: NSObject {
     }
   }
   
+  @concurrent
+  private func startSession(_ session: AVCaptureSession) async {
+    session.startRunning()
+  }
+  
+  @concurrent
+  private func stopSession(_ session: AVCaptureSession) async {
+    session.stopRunning()
+  }
+  
   private func updateVideoOutputConnection() {
     if let videoOutput, let videoOutputConnection = videoOutput.connection(with: .video) {
       if videoOutputConnection.isVideoMirroringSupported {
@@ -248,9 +264,8 @@ actor CameraManager: NSObject {
   }
 }
 
-extension CameraManager: @preconcurrency AVCapturePhotoCaptureDelegate {
+extension CameraManager: AVCapturePhotoCaptureDelegate {
   nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
-    
     if error != nil { return }
     
     photoStreamContinuation.yield(photo)
@@ -258,10 +273,10 @@ extension CameraManager: @preconcurrency AVCapturePhotoCaptureDelegate {
   }
 }
 
-extension CameraManager: @preconcurrency AVCaptureVideoDataOutputSampleBufferDelegate {
+extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
   nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
     guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
-    guard !_isPreviewPaused else { return }
+    guard !isPreviewPaused else { return }
     let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
     previewStreamContinuation.yield(ciImage)
     onPreviewFrame?(ciImage)

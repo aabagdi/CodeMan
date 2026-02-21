@@ -25,7 +25,7 @@ enum TranslationError: LocalizedError {
   }
 }
 
-actor PythonTranslator {
+struct PythonTranslator {
   private let instructions: String
   private let maxInputLength = 12000
   
@@ -178,7 +178,7 @@ actor PythonTranslator {
       throw TranslationError.unsupportedLocale
     }
     
-    let sanitized = await input.escapingDelimiterTags()
+    let sanitized = input.escapingDelimiterTags()
     
     guard sanitized.count <= maxInputLength else {
       throw TranslationError.inputTooLong
@@ -194,7 +194,7 @@ actor PythonTranslator {
       return ""
     }
     
-    return await content
+    return content
       .strippingOutputComments()
       .validatingModelOutput()
   }

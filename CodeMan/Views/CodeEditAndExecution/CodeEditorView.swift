@@ -89,6 +89,9 @@ struct CodeEditorView: View {
             isInitialized = true
           }
         }
+        .onDisappear {
+          isEditorFocused = false
+        }
         .onChange(of: translation) {
           if !isInitialized, let translation {
             text = highlight(translation.translatedCode ?? "")

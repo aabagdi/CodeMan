@@ -61,7 +61,7 @@ struct CreditsView: View {
             .fontWeight(.semibold)
             .foregroundStyle(.green.gradient)
           
-          Text("CodeMan is provided under the MIT License")
+          Text("AlgorithmMan is provided under the MIT License")
             .foregroundStyle(.secondary)
           
           Text("""

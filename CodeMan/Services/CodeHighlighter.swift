@@ -9,6 +9,7 @@ import SwiftUI
 import Highlighter
 import UIKit
 
+@MainActor
 final class CodeHighlighter {
   static let shared = CodeHighlighter()
   
