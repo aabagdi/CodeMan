@@ -308,4 +308,3 @@ private struct OutputSection: View {
     }
   }
 }
-
