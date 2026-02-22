@@ -75,11 +75,19 @@ struct AlgorithmSearchView: View {
     }
     .alert("Generation Error",
            isPresented: $viewModel.showingError) {
-      Button("OK") {
+      Button("Retry") {
+        viewModel.dismissError()
+        Task {
+          await viewModel.generateAlgorithm(colorScheme: colorScheme)
+        }
+      }
+      Button("Cancel", role: .cancel) {
         viewModel.dismissError()
       }
     } message: {
-      Text(viewModel.errorMessage)
+      Text(viewModel.errorMessage.isEmpty
+           ? "An unexpected error occurred."
+           : viewModel.errorMessage)
     }
     .task {
       await viewModel.checkModelAvailability()

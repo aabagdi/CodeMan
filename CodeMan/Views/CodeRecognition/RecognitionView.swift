@@ -113,11 +113,21 @@ struct RecognitionView: View {
         viewModel.showingSameNameExistsError = false
       }
     }
-    .alert("Translation Error. Please try taking another photo.",
+    .alert("Translation Error",
            isPresented: $viewModel.showingTranslationError) {
-      Button("OK") {
+      Button("Retry") {
+        viewModel.dismissTranslationError()
+        Task {
+          await viewModel.translateAllText(colorScheme: colorScheme)
+        }
+      }
+      Button("Cancel", role: .cancel) {
         viewModel.dismissTranslationError()
       }
+    } message: {
+      Text(viewModel.translationError.isEmpty
+           ? "An unexpected error occurred."
+           : viewModel.translationError)
     }
     .task {
       guard let imageData = image else { return }

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SQLiteData
+import Dependencies
 import TipKit
 
 private struct KeyboardDismissingView: UIViewControllerRepresentable {
@@ -31,8 +32,15 @@ struct CodeEditAndExecutionView: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @Environment(\.verticalSizeClass) private var verticalSizeClass
   
+  @Dependency(\.defaultDatabase) var database
+  
   @State private var executionResult: PythonRunner.ExecutionResult?
   @State private var isRunning = false
+  @State private var isFixing = false
+  @State private var fixUnavailable = false
+  @State private var showingFixError = false
+  @State private var fixErrorMessage = ""
+  @State private var fixCount = 0
   @State private var pythonVersion: String?
   @State private var successCount = 0
   @State private var errorCount = 0
@@ -73,6 +81,7 @@ struct CodeEditAndExecutionView: View {
     }
     .ignoresSafeArea(.keyboard)
     .sensoryFeedback(.success, trigger: successCount)
+    .sensoryFeedback(.success, trigger: fixCount)
     .sensoryFeedback(.error, trigger: errorCount)
     .navigationTitle("Edit & Run")
     .navigationBarTitleDisplayMode(.inline)
@@ -84,6 +93,16 @@ struct CodeEditAndExecutionView: View {
         .disabled(executionResult == nil)
       }
     }
+    .alert("Fix Error", isPresented: $showingFixError) {
+      Button("OK") {
+        fixErrorMessage = ""
+        showingFixError = false
+      }
+    } message: {
+      Text(fixErrorMessage.isEmpty
+           ? "An unexpected error occurred."
+           : fixErrorMessage)
+    }
     .background {
       KeyboardDismissingView()
         .frame(width: 0, height: 0)
@@ -93,6 +112,8 @@ struct CodeEditAndExecutionView: View {
     }
     .onAppear {
       pythonVersion = "Python " + PythonRunner.shared.getVersion()
+      let fixer = CodeFixer()
+      fixUnavailable = !fixer.isAvailable
     }
   }
   
@@ -114,6 +135,11 @@ struct CodeEditAndExecutionView: View {
           pythonVersion: pythonVersion
         )
         .padding(.horizontal)
+        
+        if hasError && !fixUnavailable {
+          fixButton
+            .padding(.horizontal)
+        }
       }
       .padding(.vertical)
     }
@@ -136,6 +162,10 @@ struct CodeEditAndExecutionView: View {
           outputTextColor: outputTextColor,
           pythonVersion: pythonVersion
         )
+        
+        if hasError && !fixUnavailable {
+          fixButton
+        }
       }
       .padding()
       .frame(width: 280)
@@ -151,11 +181,9 @@ struct CodeEditAndExecutionView: View {
         Text(isRunning ? "Running..." : "Run Code")
       }
       .frame(maxWidth: .infinity)
-      .padding(.vertical, 12)
-      .background(isRunning ? Color.orange : Color.green)
-      .foregroundStyle(.white)
-      .clipShape(.rect(cornerRadius: 8))
     }
+    .buttonStyle(.glassProminent)
+    .tint(isRunning ? .orange : .green)
     .disabled(isRunning)
   }
   
@@ -174,6 +202,65 @@ struct CodeEditAndExecutionView: View {
     } else {
       successCount += 1
     }
+  }
+  
+  private var fixButton: some View {
+    Button {
+      Task {
+        await fixCode()
+      }
+    } label: {
+      HStack {
+        if isFixing {
+          ProgressView()
+          Text("Fixing...")
+        } else {
+          Image(systemName: "sparkles")
+          Text("Fix with AI")
+        }
+      }
+      .frame(maxWidth: .infinity)
+    }
+    .buttonStyle(.glass)
+    .intelligenceBackground(in: Capsule())
+    .disabled(isFixing || isRunning)
+  }
+  
+  private func fixCode() async {
+    guard let code = translation?.translatedCode,
+          let error = executionResult?.output,
+          executionResult?.isError == true else { return }
+    
+    isFixing = true
+    
+    do {
+      let fixer = CodeFixer()
+      let fixedCode = try await fixer.fix(code: code, error: error)
+      
+      guard !fixedCode.isEmpty else {
+        fixErrorMessage = "Could not generate a fix."
+        showingFixError = true
+        isFixing = false
+        return
+      }
+      
+      try await database.write { db in
+        try Translation
+          .find(translationID)
+          .update {
+            $0.translatedCode = #bind(fixedCode)
+          }
+          .execute(db)
+      }
+      
+      fixCount += 1
+      executionResult = nil
+    } catch {
+      fixErrorMessage = error.localizedDescription
+      showingFixError = true
+    }
+    
+    isFixing = false
   }
 }
 

@@ -69,6 +69,8 @@ final class RecognitionViewModel {
       
       if translated.isEmpty || translated == "NOT_CODE" {
         translatedCode = ""
+        translationError = "The image doesn't appear to contain code or pseudocode. Try taking a clearer photo or cropping to focus on the code."
+        showingTranslationError = true
       } else {
         let cleanedCode = translated.strippingMarkdownCodeBlocks()
         

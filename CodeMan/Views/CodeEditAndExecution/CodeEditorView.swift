@@ -104,9 +104,14 @@ struct CodeEditorView: View {
           isEditorFocused = false
         }
         .onChange(of: translation) {
-          if !isInitialized, let translation {
+          guard let translation else { return }
+          if !isInitialized {
             text = highlight(translation.translatedCode ?? "")
             isInitialized = true
+          } else if let newCode = translation.translatedCode,
+                    newCode != String(text.characters) {
+            // Code was updated externally (e.g., by Fix with AI)
+            text = highlight(newCode)
           }
         }
         .onChange(of: colorScheme) {
