@@ -9,33 +9,41 @@ import SwiftUI
 import UIKit
 
 struct ConfirmImageView: View {
-  @Binding var navigationPath: NavigationPath
+  var onSave: () -> Void
   
   @Environment(CameraModel.self) var model
+  @Environment(\.dismiss) private var dismissCover
   
   @State private var isCropMode = false
   @State private var rotationAngle: Int = 0
+  @State private var normalizedImage: UIImage?
+  @State private var navPath = NavigationPath()
+  @State private var didSave = false
+  @State private var shouldDismiss = false
   
   private let headerHeight: CGFloat = 90.0
   
   var body: some View {
-    Group {
-      if isCropMode, let photoTaken = model.photoTaken {
-        ImageCropperView(
-          image: photoTaken,
-          initialRotation: rotationAngle,
-          onCropComplete: { croppedPhoto in
-            model.photoTaken = croppedPhoto
-            rotationAngle = 0
-            isCropMode = false
-          },
-          onCancel: {
-            isCropMode = false
-          }
-        )
-      } else {
-        ZStack {
-          GeometryReader { geometry in
+    let dismissAction = dismissCover
+    NavigationStack(path: $navPath) {
+      Group {
+        if isCropMode, let normalized = normalizedImage {
+          ImageCropperView(
+            normalizedImage: normalized,
+            rotationAngle: rotationAngle,
+            onCropComplete: { croppedPhoto in
+              model.photoTaken = croppedPhoto
+              rotationAngle = 0
+              normalizedImage = nil
+              isCropMode = false
+            },
+            onCancel: {
+              isCropMode = false
+            }
+          )
+          .toolbar(.hidden, for: .navigationBar)
+        } else {
+          ZStack {
             if let photoImage = model.photoTaken?.image {
               photoImage
                 .resizable()
@@ -43,31 +51,59 @@ struct ConfirmImageView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .rotationEffect(.degrees(Double(rotationAngle)))
             }
+            
+            VStack {
+              Spacer()
+              
+              buttonsView()
+                .frame(height: headerHeight)
+                .padding(.bottom, 16)
+            }
           }
           .ignoresSafeArea()
-          
-          VStack {
-            Spacer()
-            
-            buttonsView()
-              .frame(height: headerHeight)
-              .padding(.bottom, 16)
+          .background(Color.black)
+          .toolbar(.hidden, for: .navigationBar)
+        }
+      }
+      .navigationDestination(for: PhotoData.self) { photo in
+        RecognitionView(image: photo, onSave: {
+          didSave = true
+        })
+        .navigationTitle("Recognized Code")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden()
+        .toolbar {
+          ToolbarItem(placement: .topBarLeading) {
+            Button {
+              dismissAction()
+            } label: {
+              HStack(spacing: 4) {
+                Image(systemName: "chevron.left")
+                Text("Back")
+              }
+            }
           }
         }
-        .background(Color.black)
       }
     }
     .onAppear {
-      AppDelegate.orientationLock = .portrait
-      guard let windowScene = UIApplication.shared.connectedScenes
-        .compactMap({ $0 as? UIWindowScene }).first else { return }
-      windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+      prepareNormalizedImage()
     }
-    .onDisappear {
-      AppDelegate.orientationLock = .all
-      guard let windowScene = UIApplication.shared.connectedScenes
-        .compactMap({ $0 as? UIWindowScene }).first else { return }
-      windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .all))
+    .onChange(of: isCropMode) {
+      if !isCropMode && normalizedImage == nil {
+        prepareNormalizedImage()
+      }
+    }
+    .onChange(of: didSave) {
+      if didSave {
+        onSave()
+        dismissAction()
+      }
+    }
+    .onChange(of: shouldDismiss) {
+      if shouldDismiss {
+        dismissAction()
+      }
     }
   }
   
@@ -82,7 +118,7 @@ struct ConfirmImageView: View {
       
       Spacer()
       
-      Button { isCropMode = true } label: {
+      Button { enterCropMode() } label: {
         Label("Crop", systemImage: "crop")
           .font(.body)
           .foregroundStyle(.white)
@@ -108,9 +144,19 @@ struct ConfirmImageView: View {
     .padding(.top, 32)
   }
   
+  private func prepareNormalizedImage() {
+    guard let photo = model.photoTaken,
+          let uiImage = UIImage(data: photo.imageData) else { return }
+    normalizedImage = uiImage.normalizedImage()
+  }
+  
+  private func enterCropMode() {
+    guard normalizedImage != nil else { return }
+    isCropMode = true
+  }
+  
   private func retakeButtonTapped() {
-    model.resumePreview()
-    model.photoTaken = nil
+    shouldDismiss = true
   }
   
   private func rotateButtonTapped() {
@@ -121,36 +167,28 @@ struct ConfirmImageView: View {
   
   private func useImageButtonTapped() {
     guard let photo = model.photoTaken else { return }
-    let imageForRecognition = applyRotation(to: photo)
-    navigationPath.append(CameraNavigation.recognition(imageForRecognition))
-  }
-  
-  private func applyRotation(to photo: PhotoData) -> PhotoData {
-    guard rotationAngle != 0,
-          let uiImage = UIImage(data: photo.imageData) else {
-      return photo
+    
+    let photoForRecognition: PhotoData
+    if rotationAngle != 0,
+       let rotatedData = photo.imageData.applyingEXIFOrientation(for: rotationAngle) {
+      let displayImage: Image
+      if let normalized = normalizedImage {
+        displayImage = Image(uiImage: normalized.withDisplayRotation(rotationAngle))
+      } else {
+        displayImage = photo.image
+      }
+      let isSwapped = rotationAngle == 90 || rotationAngle == 270
+      photoForRecognition = PhotoData(
+        image: displayImage,
+        imageData: rotatedData,
+        imageSize: isSwapped
+          ? (width: photo.imageSize.height, height: photo.imageSize.width)
+          : photo.imageSize
+      )
+    } else {
+      photoForRecognition = photo
     }
     
-    let rotatedImage: UIImage
-    switch rotationAngle {
-    case 90:
-      rotatedImage = uiImage.rotatedClockwise()
-    case 180:
-      rotatedImage = uiImage.rotatedClockwise().rotatedClockwise()
-    case 270:
-      rotatedImage = uiImage.rotatedCounterClockwise()
-    default:
-      return photo
-    }
-    
-    guard let rotatedData = rotatedImage.jpegData(compressionQuality: 0.9) else {
-      return photo
-    }
-    
-    return PhotoData(
-      image: Image(uiImage: rotatedImage),
-      imageData: rotatedData,
-      imageSize: (width: Int(rotatedImage.size.width), height: Int(rotatedImage.size.height))
-    )
+    navPath.append(photoForRecognition)
   }
 }

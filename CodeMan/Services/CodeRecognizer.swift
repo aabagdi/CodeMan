@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import ImageIO
 import Vision
 import UIKit
 
@@ -42,12 +43,17 @@ class CodeRecognizer {
       "if", "then", "else", "for", "while", "do", "return"
     ]
     
-    guard let cgImage = await Self.createCGImage(from: imageData) else {
+    guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
+          let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
       throw NSError(domain: "CodeRecognizer", code: -1,
                     userInfo: [NSLocalizedDescriptionKey: "Failed to create CGImage from data"])
     }
     
-    let requestHandler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+    let exifOrientation = properties?[kCGImagePropertyOrientation] as? UInt32 ?? 1
+    let cgOrientation = CGImagePropertyOrientation(rawValue: exifOrientation) ?? .up
+    
+    let requestHandler = VNImageRequestHandler(cgImage: cgImage, orientation: cgOrientation, options: [:])
     try requestHandler.perform([request])
     
     return request.results ?? []
@@ -63,14 +69,5 @@ class CodeRecognizer {
     }.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     
     return lines.joined(separator: "\n")
-  }
-  
-  private static func createCGImage(from data: Data) -> CGImage? {
-    guard let uiImage = UIImage(data: data) else {
-      return nil
-    }
-    
-    let orientedImage = uiImage.rotatedToPortraitIfNeeded()
-    return orientedImage.cgImage
   }
 }

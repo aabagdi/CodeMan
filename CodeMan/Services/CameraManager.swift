@@ -51,9 +51,9 @@ class CameraManager: NSObject {
     _currentDeviceOrientation = orientation
   }
   
-  private let photoStreamContinuation: AsyncStream<AVCapturePhoto>.Continuation
-  let photoStream: AsyncStream<AVCapturePhoto>
-  
+  nonisolated(unsafe) var photoCaptureHandler: (@MainActor @Sendable (AVCapturePhoto) -> Void)?
+  nonisolated(unsafe) var previewFrameHandler: (@MainActor @Sendable (CIImage) -> Void)?
+
   private let _isPreviewPaused = Mutex(false)
   
   nonisolated var isPreviewPaused: Bool {
@@ -61,39 +61,11 @@ class CameraManager: NSObject {
     set { _isPreviewPaused.withLock { $0 = newValue } }
   }
   
-  private let previewStreamContinuation: AsyncStream<CIImage>.Continuation
-  let previewStream: AsyncStream<CIImage>
-  
-  private let _onPreviewFrame = Mutex<(@Sendable (CIImage) -> Void)?>(nil)
-  nonisolated var onPreviewFrame: (@Sendable (CIImage) -> Void)? {
-    get { _onPreviewFrame.withLock { $0 } }
-    set { _onPreviewFrame.withLock { $0 = newValue } }
-  }
-  
-  private let _onPhotoCaptured = Mutex<(@Sendable (AVCapturePhoto) -> Void)?>(nil)
-  nonisolated var onPhotoCaptured: (@Sendable (AVCapturePhoto) -> Void)? {
-    get { _onPhotoCaptured.withLock { $0 } }
-    set { _onPhotoCaptured.withLock { $0 = newValue } }
-  }
-  
   override init() {
-    let (photoStream, photoContinuation) = AsyncStream.makeStream(of: AVCapturePhoto.self)
-    self.photoStream = photoStream
-    self.photoStreamContinuation = photoContinuation
-    
-    let (previewStream, previewContinuation) = AsyncStream.makeStream(of: CIImage.self)
-    self.previewStream = previewStream
-    self.previewStreamContinuation = previewContinuation
-    
     super.init()
     
     session.sessionPreset = .photo
     captureDevice = nil
-  }
-  
-  deinit {
-    photoStreamContinuation.finish()
-    previewStreamContinuation.finish()
   }
   
   private func ensureCaptureDevice() {
@@ -268,8 +240,10 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
   nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
     if error != nil { return }
     
-    photoStreamContinuation.yield(photo)
-    onPhotoCaptured?(photo)
+    let handler = photoCaptureHandler
+    Task { @MainActor in
+      handler?(photo)
+    }
   }
 }
 
@@ -278,8 +252,10 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
     guard let pixelBuffer = sampleBuffer.imageBuffer else { return }
     guard !isPreviewPaused else { return }
     let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-    previewStreamContinuation.yield(ciImage)
-    onPreviewFrame?(ciImage)
+    let handler = previewFrameHandler
+    Task { @MainActor in
+      handler?(ciImage)
+    }
   }
 }
 

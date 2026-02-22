@@ -13,37 +13,17 @@ import SwiftUI
 @MainActor
 class CameraModel {
   let camera = CameraManager()
+  private let ciContext = CIContext()
   
   var previewImage: Image?
   var photoTaken: PhotoData?
   
-  init() {
-    setupCallbacks()
-  }
-  
-  private func setupCallbacks() {
-    camera.onPreviewFrame = { [weak self] ciImage in
-      Task { @MainActor [weak self] in
-        self?.previewImage = ciImage.image
-      }
+  func startCameraHandlers() {
+    camera.previewFrameHandler = { [weak self] ciImage in
+      self?.previewImage = self?.makeImage(from: ciImage)
     }
-    
-    camera.onPhotoCaptured = { [weak self] photo in
-      Task { @MainActor [weak self] in
-        self?.photoTaken = self?.unpackPhoto(photo)
-      }
-    }
-  }
-  
-  func handleCameraPreviews() async {
-    for await ciImage in camera.previewStream {
-      previewImage = ciImage.image
-    }
-  }
-  
-  func handleCameraPhotos() async {
-    for await photo in camera.photoStream {
-      photoTaken = unpackPhoto(photo)
+    camera.photoCaptureHandler = { [weak self] photo in
+      self?.photoTaken = self?.unpackPhoto(photo)
     }
   }
   
@@ -64,7 +44,6 @@ class CameraModel {
   }
   
   func resumePreview() {
-    previewImage = nil
     camera.setPreviewPaused(false)
   }
   
@@ -75,12 +54,9 @@ class CameraModel {
   func focusCamera(at point: CGPoint) {
     try? camera.setFocusPoint(point)
   }
-}
-
-fileprivate extension CIImage {
-  var image: Image? {
-    let ciContext = CIContext()
-    guard let cgImage = ciContext.createCGImage(self, from: self.extent) else { return nil }
+  
+  private func makeImage(from ciImage: CIImage) -> Image? {
+    guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else { return nil }
     return Image(decorative: cgImage, scale: 1, orientation: .up)
   }
 }

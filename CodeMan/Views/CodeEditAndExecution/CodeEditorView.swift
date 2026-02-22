@@ -60,7 +60,7 @@ struct CodeEditorView: View {
       }
         .toolbar {
           ToolbarItemGroup(placement: .keyboard) {
-            ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal) {
               HStack(spacing: 16) {
                 Group {
                   Button("⇥") { insertText("    ") }
@@ -81,6 +81,7 @@ struct CodeEditorView: View {
               }
               .padding(.horizontal)
             }
+            .scrollIndicators(.hidden)
           }
         }
         .onAppear {

@@ -15,41 +15,51 @@ struct CameraView: View {
   @State private var showCameraError: Bool = false
   @State private var pickerItem: PhotosPickerItem?
   @State private var latestLibraryImage: UIImage?
+  @State private var showConfirmImage = false
   
   var body: some View {
     ZStack {
       Color.black
         .ignoresSafeArea(.all)
       
-      if model.photoTaken != nil {
-        ConfirmImageView(navigationPath: $navigationPath)
-          .transition(.opacity)
-      } else {
-        PreviewView()
-          .transition(.opacity)
-          .overlay(alignment: .bottomLeading) {
-            let image = latestLibraryImage
-            PhotosPicker(selection: $pickerItem, matching: .images) {
-              if let image {
-                Image(uiImage: image)
-                  .resizable()
-                  .scaledToFill()
-                  .frame(width: 60, height: 60)
-                  .clipShape(.rect(cornerRadius: 8))
-                  .padding()
-              } else {
-                RoundedRectangle(cornerRadius: 8)
-                  .fill(.gray.opacity(0.3))
-                  .frame(width: 60, height: 60)
-                  .padding()
-              }
+      PreviewView()
+        .overlay(alignment: .bottomLeading) {
+          let image = latestLibraryImage
+          PhotosPicker(selection: $pickerItem, matching: .images) {
+            if let image {
+              Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 60, height: 60)
+                .clipShape(.rect(cornerRadius: 8))
+                .padding()
+            } else {
+              RoundedRectangle(cornerRadius: 8)
+                .fill(.gray.opacity(0.3))
+                .frame(width: 60, height: 60)
+                .padding()
             }
-            .padding()
           }
-      }
+          .padding()
+        }
     }
     .environment(model)
-    .animation(.easeInOut(duration: 0.2), value: model.photoTaken != nil)
+    .onChange(of: model.photoTaken != nil) {
+      showConfirmImage = model.photoTaken != nil
+    }
+    .fullScreenCover(isPresented: $showConfirmImage, onDismiss: {
+      AppDelegate.orientationLock = .all
+      model.photoTaken = nil
+      model.resumePreview()
+    }) {
+      ConfirmImageView(onSave: {
+        navigationPath = NavigationPath()
+      })
+        .environment(model)
+        .onAppear {
+          AppDelegate.orientationLock = .portrait
+        }
+    }
     .task {
       latestLibraryImage = await getLatestImage()
     }
@@ -65,11 +75,8 @@ struct CameraView: View {
       "The camera is not starting, try restarting the app or make sure camera permissions for AlgorithmMan are turned on.",
       isPresented: $showCameraError
     ) { }
-      .task {
-        await model.handleCameraPreviews()
-      }
-      .task {
-        await model.handleCameraPhotos()
+      .onAppear {
+        model.startCameraHandlers()
       }
       .task(id: model.photoTaken != nil) {
         if model.photoTaken != nil {

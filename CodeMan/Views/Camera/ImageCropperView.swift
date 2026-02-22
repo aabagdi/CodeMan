@@ -9,8 +9,8 @@ import SwiftUI
 import UIKit
 
 struct ImageCropperView: View {
-  let image: PhotoData
-  let initialRotation: Int
+  let normalizedImage: UIImage
+  let rotationAngle: Int
   let onCropComplete: (PhotoData) -> Void
   let onCancel: () -> Void
   
@@ -20,39 +20,11 @@ struct ImageCropperView: View {
   @State private var imageFrame: CGRect = .zero
   @State private var isResizing = false
   @State private var resizingCorner: Int?
-  @State private var rotationAngle: Int = 0
-  @State private var cachedRotatedImage: UIImage?
-  @State private var cachedRotationAngle: Int = -1
-
-  private func updateRotatedImageIfNeeded() {
-    guard cachedRotationAngle != rotationAngle else { return }
-    guard let uiImage = UIImage(data: image.imageData) else { return }
-    let normalized = uiImage.normalizedImage()
-    
-    switch rotationAngle {
-    case 90:
-      cachedRotatedImage = normalized.rotatedClockwise()
-    case 180:
-      cachedRotatedImage = normalized.rotatedClockwise().rotatedClockwise()
-    case 270:
-      cachedRotatedImage = normalized.rotatedCounterClockwise()
-    default:
-      cachedRotatedImage = normalized
-    }
-    cachedRotationAngle = rotationAngle
-  }
-  
-  private var displayImage: Image {
-    if let cached = cachedRotatedImage {
-      return Image(uiImage: cached)
-    }
-    return image.image
-  }
   
   var body: some View {
     GeometryReader { geometry in
         ZStack {
-          Color.clear
+          Color.black
             .onAppear {
               imageFrame = geometry.frame(in: .local)
             }
@@ -60,7 +32,7 @@ struct ImageCropperView: View {
               imageFrame = geometry.frame(in: .local)
             }
           
-          displayImage
+          Image(uiImage: normalizedImage.withDisplayRotation(rotationAngle))
             .resizable()
             .scaledToFit()
           
@@ -128,24 +100,13 @@ struct ImageCropperView: View {
             }
         )
       }
+      .ignoresSafeArea()
       .safeAreaInset(edge: .bottom) {
         HStack {
           Button("Cancel") {
             onCancel()
           }
           .foregroundStyle(.white)
-          
-          Spacer()
-          
-          Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-              rotationAngle = (rotationAngle + 90) % 360
-              selectionRect = .zero
-            }
-          } label: {
-            Label("Rotate", systemImage: "rotate.right")
-              .foregroundStyle(.white)
-          }
           
           Spacer()
           
@@ -157,14 +118,7 @@ struct ImageCropperView: View {
         }
         .padding(.horizontal, 32)
         .padding(.vertical, 16)
-        .background(Color.black.opacity(0.6))
-      }
-      .onAppear {
-        rotationAngle = initialRotation
-        updateRotatedImageIfNeeded()
-      }
-      .onChange(of: rotationAngle) {
-        updateRotatedImageIfNeeded()
+        .background(Color.black)
       }
   }
   
@@ -231,67 +185,105 @@ struct ImageCropperView: View {
   }
   
   private func cropImage() {
-    guard let normalizedImage = cachedRotatedImage else { return }
     guard let cgImage = normalizedImage.cgImage else { return }
     
-    let displayedSize = imageFrame.size
-    let actualSize = CGSize(width: cgImage.width, height: cgImage.height)
+    let displayImage = normalizedImage.withDisplayRotation(rotationAngle)
+    let rotatedW = displayImage.size.width
+    let rotatedH = displayImage.size.height
     
-    let aspectRatio = actualSize.width / actualSize.height
-    let displayAspect = displayedSize.width / displayedSize.height
+    let containerSize = imageFrame.size
+    let aspectRatio = rotatedW / rotatedH
+    let displayAspect = containerSize.width / containerSize.height
     
-    var actualImageFrame = CGRect(origin: .zero, size: displayedSize)
+    var displayFrame: CGRect
     if displayAspect > aspectRatio {
-      let scaledWidth = displayedSize.height * aspectRatio
-      actualImageFrame = CGRect(
-        x: (displayedSize.width - scaledWidth) / 2,
+      let scaledWidth = containerSize.height * aspectRatio
+      displayFrame = CGRect(
+        x: (containerSize.width - scaledWidth) / 2,
         y: 0,
         width: scaledWidth,
-        height: displayedSize.height
+        height: containerSize.height
       )
     } else {
-      let scaledHeight = displayedSize.width / aspectRatio
-      actualImageFrame = CGRect(
+      let scaledHeight = containerSize.width / aspectRatio
+      displayFrame = CGRect(
         x: 0,
-        y: (displayedSize.height - scaledHeight) / 2,
-        width: displayedSize.width,
+        y: (containerSize.height - scaledHeight) / 2,
+        width: containerSize.width,
         height: scaledHeight
       )
     }
     
-    let relativeRect = CGRect(
-      x: (selectionRect.minX - actualImageFrame.minX) / actualImageFrame.width,
-      y: (selectionRect.minY - actualImageFrame.minY) / actualImageFrame.height,
-      width: selectionRect.width / actualImageFrame.width,
-      height: selectionRect.height / actualImageFrame.height
-    )
+    var relX = (selectionRect.minX - displayFrame.minX) / displayFrame.width
+    var relY = (selectionRect.minY - displayFrame.minY) / displayFrame.height
+    var relW = selectionRect.width / displayFrame.width
+    var relH = selectionRect.height / displayFrame.height
     
-    let clampedRect = CGRect(
-      x: max(0, min(1, relativeRect.origin.x)),
-      y: max(0, min(1, relativeRect.origin.y)),
-      width: max(0, min(1 - relativeRect.origin.x, relativeRect.width)),
-      height: max(0, min(1 - relativeRect.origin.y, relativeRect.height))
-    )
+    relX = max(0, min(1, relX))
+    relY = max(0, min(1, relY))
+    relW = max(0, min(1 - relX, relW))
+    relH = max(0, min(1 - relY, relH))
     
-    let cropRect = CGRect(
-      x: clampedRect.origin.x * actualSize.width,
-      y: clampedRect.origin.y * actualSize.height,
-      width: clampedRect.width * actualSize.width,
-      height: clampedRect.height * actualSize.height
-    )
+    let pixelW = CGFloat(cgImage.width)
+    let pixelH = CGFloat(cgImage.height)
     
-    guard let croppedCGImage = cgImage.cropping(to: cropRect) else { return }
+    let cropRect: CGRect
+    switch rotationAngle {
+    case 90:
+      // Display .right: displayed (x,y) -> pixel (y, 1-x-w)
+      cropRect = CGRect(
+        x: relY * pixelW,
+        y: (1 - relX - relW) * pixelH,
+        width: relH * pixelW,
+        height: relW * pixelH
+      )
+    case 180:
+      // Display .down: displayed (x,y) -> pixel (1-x-w, 1-y-h)
+      cropRect = CGRect(
+        x: (1 - relX - relW) * pixelW,
+        y: (1 - relY - relH) * pixelH,
+        width: relW * pixelW,
+        height: relH * pixelH
+      )
+    case 270:
+      // Display .left: displayed (x,y) -> pixel (1-y-h, x)
+      cropRect = CGRect(
+        x: (1 - relY - relH) * pixelW,
+        y: relX * pixelH,
+        width: relH * pixelW,
+        height: relW * pixelH
+      )
+    default:
+      cropRect = CGRect(
+        x: relX * pixelW,
+        y: relY * pixelH,
+        width: relW * pixelW,
+        height: relH * pixelH
+      )
+    }
     
-    let croppedUIImage = UIImage(cgImage: croppedCGImage)
+    guard cropRect.width > 0, cropRect.height > 0,
+          let croppedCGImage = cgImage.cropping(to: cropRect) else { return }
     
-    guard let croppedData = croppedUIImage.jpegData(compressionQuality: 0.9) else {
+    let orientation: UIImage.Orientation
+    switch rotationAngle {
+    case 90: orientation = .right
+    case 180: orientation = .down
+    case 270: orientation = .left
+    default: orientation = .up
+    }
+    
+    let croppedUIImage = UIImage(cgImage: croppedCGImage, scale: normalizedImage.scale, orientation: orientation)
+    let finalImage = croppedUIImage.normalizedImage()
+    
+    guard let croppedData = finalImage.jpegData(compressionQuality: 0.9) else {
       return
     }
     
     let croppedPhoto = PhotoData(
-      image: Image(uiImage: croppedUIImage),
+      image: Image(uiImage: finalImage),
       imageData: croppedData,
-      imageSize: (width: croppedCGImage.width, height: croppedCGImage.height)
+      imageSize: (width: Int(finalImage.size.width), height: Int(finalImage.size.height))
     )
     
     onCropComplete(croppedPhoto)

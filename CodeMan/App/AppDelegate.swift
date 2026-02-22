@@ -7,6 +7,7 @@
 
 import UIKit
 
+@MainActor
 class AppDelegate: NSObject, UIApplicationDelegate {
   static var orientationLock: UIInterfaceOrientationMask = .all
 

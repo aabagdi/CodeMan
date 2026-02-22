@@ -9,7 +9,7 @@ import SwiftUI
 
 struct RecognitionView: View {
   let image: PhotoData?
-  @Binding var navigationPath: NavigationPath
+  var onSave: () -> Void
   
   @Environment(\.colorScheme) private var colorScheme
   
@@ -92,7 +92,7 @@ struct RecognitionView: View {
       Button("Save") {
         do {
           if (try viewModel.saveCode(image: image)) {
-            navigationPath = NavigationPath()
+            onSave()
           }
         } catch {
           showingSaveError = true

@@ -50,7 +50,7 @@ struct TranslationGridView: View {
             CameraView(navigationPath: $navigationPath)
               .id(cameraID)
           case .recognition(let photoData):
-            RecognitionView(image: photoData, navigationPath: $navigationPath)
+            RecognitionView(image: photoData, onSave: { navigationPath = NavigationPath() })
           case .algorithmGenerator:
             AlgorithmSearchView(navigationPath: $navigationPath)
           }
@@ -144,7 +144,7 @@ struct TranslationGridView: View {
         
         ScrollView {
           LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: columns), spacing: spacing) {
-            ForEach(translations.enumerated(), id: \.offset) { index, item in
+            ForEach(Array(translations.enumerated()), id: \.element.id) { index, item in
               gridItem(for: item, size: max(itemSize, 0))
                 .popoverTip(index == 0 ? DeleteTip() : nil)
             }

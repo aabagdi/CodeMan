@@ -10,17 +10,15 @@ import SwiftUI
 struct ImageView: View {
   var image: Image?
   var body: some View {
-    GeometryReader { geometry in
-      if let image {
-        image
-          .resizable()
-          .aspectRatio(contentMode: .fill)
-          .frame(width: geometry.size.width, height: geometry.size.height)
-          .clipped()
-      } else {
-        Color.black
-          .frame(width: geometry.size.width, height: geometry.size.height)
-      }
+    if let image {
+      image
+        .resizable()
+        .aspectRatio(contentMode: .fill)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+    } else {
+      Color.black
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
   }
 }

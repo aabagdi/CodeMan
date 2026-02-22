@@ -44,10 +44,12 @@ struct PreviewView: View {
     }
     .ignoresSafeArea()
     .sensoryFeedback(.impact, trigger: isCapturing)
-    .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
-      handleOrientationChange()
+    .task {
+      setInitialOrientation()
+      for await _ in NotificationCenter.default.notifications(named: UIDevice.orientationDidChangeNotification) {
+        handleOrientationChange()
+      }
     }
-    .onAppear { setInitialOrientation() }
   }
   
   private var previewRotationAngle: Angle {
@@ -114,7 +116,10 @@ struct PreviewView: View {
     guard !isCapturing else { return }
     isCapturing = true
     Task {
-      try await model.camera.takePhoto()
+      do {
+        try await model.camera.takePhoto()
+      } catch { }
+      isCapturing = false
     }
   }
   
