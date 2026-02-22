@@ -151,6 +151,11 @@ struct TranslationGridView: View {
           }
           .padding(spacing)
         }
+        .onTapGesture {
+          if inDeletionMode {
+            inDeletionMode = false
+          }
+        }
       }
     }
     
