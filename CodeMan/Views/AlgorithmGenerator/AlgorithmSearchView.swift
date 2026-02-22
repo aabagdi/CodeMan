@@ -12,6 +12,7 @@ struct AlgorithmSearchView: View {
   @Binding var navigationPath: NavigationPath
   
   @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   
   @State private var viewModel = AlgorithmGeneratorViewModel()
   @State private var showingSaveError: Bool = false
@@ -201,7 +202,7 @@ struct AlgorithmSearchView: View {
   
   private func exampleChip(_ text: String, icon: String) -> some View {
     Button {
-      withAnimation(.easeInOut(duration: 0.2)) {
+      withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
         viewModel.searchText = text
       }
     } label: {

@@ -139,6 +139,7 @@ struct PreviewView: View {
       }
       .buttonStyle(.plain)
       .disabled(isCapturing)
+      .accessibilityLabel("Take photo")
       
       Spacer()
     }

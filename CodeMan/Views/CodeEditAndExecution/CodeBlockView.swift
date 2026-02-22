@@ -53,6 +53,9 @@ struct CodeBlockView: View {
         }
       }
       .sensoryFeedback(.success, trigger: didCopy)
+      .accessibilityElement(children: .combine)
+      .accessibilityLabel("\(title) code block")
+      .accessibilityHint("Long press to copy code")
     }
   }
 }

@@ -22,6 +22,8 @@ struct TranslationGridItemView: View {
         .lineLimit(1)
     }
     .contentShape(Rectangle())
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(translation.title)
   }
   
   @ViewBuilder

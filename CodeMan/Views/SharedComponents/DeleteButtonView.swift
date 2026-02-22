@@ -12,6 +12,8 @@ struct DeleteButtonView: View {
   
   let onTap: () throws -> Void
   
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  
   var body: some View {
     Button {
       try? onTap()
@@ -22,7 +24,7 @@ struct DeleteButtonView: View {
     .scaleEffect(1.2)
     .foregroundStyle(.red)
     .opacity(isPresented ? 1 : 0)
-    .animation(.easeInOut, value: isPresented)
+    .animation(reduceMotion ? nil : .easeInOut, value: isPresented)
   }
 }
 

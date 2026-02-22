@@ -21,6 +21,8 @@ struct ConfirmImageView: View {
   @State private var didSave = false
   @State private var shouldDismiss = false
   
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  
   private let headerHeight: CGFloat = 90.0
   
   var body: some View {
@@ -160,7 +162,7 @@ struct ConfirmImageView: View {
   }
   
   private func rotateButtonTapped() {
-    withAnimation(.easeInOut(duration: 0.2)) {
+    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
       rotationAngle = (rotationAngle + 90) % 360
     }
   }

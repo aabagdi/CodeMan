@@ -11,12 +11,13 @@ struct JiggleModifier: ViewModifier {
   var isJiggling: Bool
   
   @State private var animating = false
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   
   func body(content: Content) -> some View {
     content
-      .rotationEffect(.degrees(isJiggling ? (animating ? 2 : -2) : 0))
+      .rotationEffect(.degrees(isJiggling && !reduceMotion ? (animating ? 2 : -2) : 0))
       .animation(
-        isJiggling ? .easeInOut(duration: 0.1).repeatForever(autoreverses: true) : .default,
+        isJiggling && !reduceMotion ? .easeInOut(duration: 0.1).repeatForever(autoreverses: true) : .default,
         value: animating
       )
       .animation(.default, value: isJiggling)

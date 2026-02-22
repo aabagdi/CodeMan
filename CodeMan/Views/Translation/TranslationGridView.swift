@@ -173,6 +173,7 @@ struct TranslationGridView: View {
         }
         .onTapGesture { gridItemTapped(item) }
         .onLongPressGesture { inDeletionMode = true }
+        .accessibilityHint(inDeletionMode ? "Tap to exit delete mode" : "Double-tap to view. Long press to delete.")
     }
     
     private func gridItemTapped(_ item: Translation) {
@@ -197,6 +198,7 @@ struct TranslationGridView: View {
       Button { addButtonTapped() } label: {
         Image(systemName: "plus")
       }
+      .accessibilityLabel("Capture new algorithm")
       .disabled(inDeletionMode)
     }
     
@@ -208,6 +210,7 @@ struct TranslationGridView: View {
       } label: {
         Image(systemName: "wand.and.stars")
       }
+      .accessibilityLabel("Generate algorithm with AI")
       .disabled(inDeletionMode)
     }
     

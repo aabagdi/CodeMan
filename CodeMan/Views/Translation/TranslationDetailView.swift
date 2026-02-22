@@ -63,6 +63,7 @@ struct TranslationDetailView: View {
               NavigationLink(destination: CodeEditAndExecutionView(translationID: translationID)) {
                 Image(systemName: "play.fill")
               }
+              .accessibilityLabel("Run code")
               
               Divider()
               
@@ -71,6 +72,7 @@ struct TranslationDetailView: View {
                   Image(systemName: "square.and.arrow.up")
                     .offset(x: -2, y: -3)
                 }
+                .accessibilityLabel("Share Python file")
               }
             }
           }

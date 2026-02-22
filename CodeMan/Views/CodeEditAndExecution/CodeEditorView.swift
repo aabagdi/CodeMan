@@ -17,6 +17,7 @@ struct CodeEditorView: View {
   @Dependency(\.defaultDatabase) var database
   
   @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   
   @FocusState private var isEditorFocused: Bool
   
@@ -56,7 +57,7 @@ struct CodeEditorView: View {
         .background(.ultraThinMaterial, in: Capsule())
         .padding(24)
         .opacity(isSaving ? 1 : 0)
-        .animation(.easeInOut(duration: 1.2), value: isSaving)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 1.2), value: isSaving)
       }
         .toolbar {
           ToolbarItemGroup(placement: .keyboard) {
@@ -64,14 +65,23 @@ struct CodeEditorView: View {
               HStack(spacing: 16) {
                 Group {
                   Button("⇥") { insertText("    ") }
+                    .accessibilityLabel("Insert indentation")
                   Button("()") { insertPaired("(", ")") }
+                    .accessibilityLabel("Insert parentheses")
                   Button("[]") { insertPaired("[", "]") }
+                    .accessibilityLabel("Insert square brackets")
                   Button("{}") { insertPaired("{", "}") }
+                    .accessibilityLabel("Insert curly braces")
                   Button(":") { insertText(":") }
+                    .accessibilityLabel("Insert colon")
                   Button("\"\"") { insertPaired("\"", "\"") }
+                    .accessibilityLabel("Insert quotes")
                   Button("=") { insertText("=") }
+                    .accessibilityLabel("Insert equals")
                   Button("#") { insertText("#") }
+                    .accessibilityLabel("Insert comment")
                   Button("_") { insertText("_") }
+                    .accessibilityLabel("Insert underscore")
                 }
                 .fontDesign(.monospaced)
                 
