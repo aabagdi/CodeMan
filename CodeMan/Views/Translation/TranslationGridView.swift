@@ -129,6 +129,8 @@ struct TranslationGridView: View {
     private var contentView: some View {
       if !translations.isEmpty {
         gridView
+      } else if !searchText.isEmpty {
+        ContentUnavailableView.search(text: searchText)
       } else {
         ContentUnavailableView(
           "No algorithms captured",

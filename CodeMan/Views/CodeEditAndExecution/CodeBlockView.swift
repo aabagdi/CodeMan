@@ -13,6 +13,8 @@ struct CodeBlockView: View {
   let codeString: String
   let backgroundColor: Color
   
+  @State private var didCopy = false
+  
   init(title: String, code: String, backgroundColor: Color) {
     self.title = title
     self.code = Text(code)
@@ -45,10 +47,12 @@ struct CodeBlockView: View {
       .contextMenu {
         Button {
           UIPasteboard.general.string = codeString
+          didCopy.toggle()
         } label: {
           Label("Copy", systemImage: "document.on.document")
         }
       }
+      .sensoryFeedback(.success, trigger: didCopy)
     }
   }
 }
