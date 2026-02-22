@@ -9,19 +9,31 @@ import SwiftUI
 import SQLiteData
 import TipKit
 import FoundationModels
+import Dependencies
 
 struct TranslationGridView: View {
   @State private var inDeletionMode = false
   @State private var selectedTranslationID: Translation.ID?
-  @State private var cameraID = UUID()
+  @State private var cameraID: UUID
   @State private var navigationPath = NavigationPath()
   @State private var searchText = ""
   @State private var showingUnavailableAlert = false
   @State private var unavailableMessage = ""
+  @State private var refreshID: UUID
+  
+  @Environment(\.scenePhase) private var scenePhase
   
   @FetchAll(Translation.none, animation: .default) var translations: [Translation]
   
   @Dependency(\.defaultDatabase) var database
+  @Dependency(\.uuid) var uuid
+  
+  init() {
+    @Dependency(\.uuid) var uuid
+    
+    self._cameraID = State(initialValue: uuid())
+    self._refreshID = State(initialValue: uuid())
+  }
   
   private let columns = 3
   private let spacing: CGFloat = 12
@@ -67,7 +79,7 @@ struct TranslationGridView: View {
         inDeletionMode = false
       }
     }
-    .task(id: searchText) {
+    .task(id: TranslationLoadTrigger(searchText: searchText, refreshID: refreshID)) {
       _ = await withErrorReporting {
         if searchText.isEmpty {
           try await $translations.load(
@@ -79,6 +91,11 @@ struct TranslationGridView: View {
             animation: .default
           )
         }
+      }
+    }
+    .onChange(of: scenePhase) { _, newPhase in
+      if newPhase == .active {
+        refreshID = uuid()
       }
     }
     .alert("Apple Intelligence Unavailable", isPresented: $showingUnavailableAlert) {
@@ -189,7 +206,7 @@ struct TranslationGridView: View {
     
     private func addButtonTapped() {
       if checkAppleIntelligenceAvailability() {
-        cameraID = UUID()
+        cameraID = uuid()
         navigationPath.append(CameraNavigation.camera)
       }
     }
@@ -200,11 +217,15 @@ struct TranslationGridView: View {
       }
       .disabled(inDeletionMode)
     }
-  
 }
 
 enum CameraNavigation: Hashable {
   case camera
   case recognition(PhotoData)
   case algorithmGenerator
+}
+
+private struct TranslationLoadTrigger: Equatable {
+  let searchText: String
+  let refreshID: UUID
 }

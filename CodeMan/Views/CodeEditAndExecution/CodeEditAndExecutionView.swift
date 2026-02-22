@@ -13,7 +13,7 @@ private struct KeyboardDismissingView: UIViewControllerRepresentable {
   func makeUIViewController(context: Context) -> KeyboardDismissingViewController {
     KeyboardDismissingViewController()
   }
-  func updateUIViewController(_ uiViewController: KeyboardDismissingViewController, context: Context) {}
+  func updateUIViewController(_ uiViewController: KeyboardDismissingViewController, context: Context) { }
 }
 
 private class KeyboardDismissingViewController: UIViewController {
