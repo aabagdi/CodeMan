@@ -54,6 +54,11 @@ struct CodeFixer {
     "heapreplace": "from heapq import heapreplace",
     "nlargest": "from heapq import nlargest",
     "nsmallest": "from heapq import nsmallest",
+    "heapify_max": "from heapq import heapify_max",
+    "heappush_max": "from heapq import heappush_max",
+    "heappop_max": "from heapq import heappop_max",
+    "heappushpop_max": "from heapq import heappushpop_max",
+    "heapreplace_max": "from heapq import heapreplace_max",
     // bisect
     "bisect_left": "from bisect import bisect_left",
     "bisect_right": "from bisect import bisect_right",
