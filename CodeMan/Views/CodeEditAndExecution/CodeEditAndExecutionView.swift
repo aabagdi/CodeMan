@@ -31,6 +31,7 @@ struct CodeEditAndExecutionView: View {
   
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @Environment(\.verticalSizeClass) private var verticalSizeClass
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   
   @Dependency(\.defaultDatabase) var database
   
@@ -41,6 +42,8 @@ struct CodeEditAndExecutionView: View {
   @State private var showingFixError = false
   @State private var fixErrorMessage = ""
   @State private var fixCount = 0
+  @State private var copyCount = 0
+  @State private var showCopiedMessage = false
   @State private var pythonVersion: String?
   @State private var successCount = 0
   @State private var errorCount = 0
@@ -82,13 +85,25 @@ struct CodeEditAndExecutionView: View {
     .ignoresSafeArea(.keyboard)
     .sensoryFeedback(.success, trigger: successCount)
     .sensoryFeedback(.success, trigger: fixCount)
+    .sensoryFeedback(.success, trigger: copyCount)
     .sensoryFeedback(.error, trigger: errorCount)
     .navigationTitle("Edit & Run")
     .navigationBarTitleDisplayMode(.inline)
+    .overlay(alignment: .center) {
+      OutputCopiedMessageView()
+        .opacity(showCopiedMessage ? 1 : 0)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: showCopiedMessage)
+    }
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
         Button("Copy output") {
           UIPasteboard.general.string = executionResult?.output
+          copyCount += 1
+          showCopiedMessage = true
+          Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            showCopiedMessage = false
+          }
         }
         .disabled(executionResult == nil)
       }
