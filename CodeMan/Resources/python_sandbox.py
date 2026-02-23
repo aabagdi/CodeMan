@@ -483,8 +483,43 @@ class _safe_tuple(_real_tuple):
 
 
 _real_str = str
+
+import string as _string_module
+
+class _SafeFormatter(_string_module.Formatter):
+    """A string.Formatter that blocks access to dangerous attributes.
+    
+    Python's str.format() resolves field names like {0.__class__.__mro__}
+    internally using getattr(), bypassing AST-level protections.
+    This formatter intercepts that resolution step.
+    """
+    
+    def get_field(self, field_name, args, kwargs):
+        # string.Formatter.get_field parses "0.__class__.__mro__[1]" into
+        # attribute/index lookups. We re-implement it with safety checks.
+        first, rest = _string_module._string.formatter_field_name_split(field_name)
+        
+        # Resolve the first part (positional or keyword arg)
+        if isinstance(first, int):
+            obj = args[first]
+        else:
+            obj = kwargs[first]
+        
+        # Walk the attribute/index chain with safety checks
+        for is_attr, key in rest:
+            if is_attr:
+                if isinstance(key, str) and key in _dangerous_attrs:
+                    raise AttributeError(f"Access to '{key}' is not allowed in format strings")
+                obj = _real_getattr(obj, key)
+            else:
+                obj = obj[key]
+        
+        return obj, first
+
+_safe_formatter = _SafeFormatter()
+
 class _safe_str(_real_str):
-    """str replacement that checks size on creation and multiplication."""
+    """str replacement that checks size on creation, multiplication, and format strings."""
     def __new__(cls, obj=''):
         result = _real_str.__new__(cls, obj)
         if len(result) > _MAX_ALLOCATION_SIZE:
@@ -501,6 +536,12 @@ class _safe_str(_real_str):
     
     def __rmul__(self, n):
         return self.__mul__(n)
+    
+    def format(self, *args, **kwargs):
+        return _safe_formatter.format(self, *args, **kwargs)
+    
+    def format_map(self, mapping):
+        return _safe_formatter.vformat(self, (), mapping)
     
     def join(self, iterable):
         # Convert to list to check size (also limits infinite iterators)
@@ -730,7 +771,7 @@ def _safe_setattr(obj, name, value):
 # AST Transformer to Intercept Attribute Access
 # =============================================================================
 
-_protected_names = {'__safe_getattr__', '__builtins__'}
+_protected_names = {'__safe_getattr__', '__builtins__', '__safe_formatter__'}
 
 class AttributeAccessTransformer(ast.NodeTransformer):
     """Transforms attribute access to use safe getattr for dangerous attributes."""
@@ -769,10 +810,65 @@ class AttributeAccessTransformer(ast.NodeTransformer):
                 raise SyntaxError(self._make_error(f"Access to '{node.attr}' is not allowed", node.lineno))
         return node
     
+    def visit_Call(self, node):
+        """Rewrite str.format() and str.format_map() to use the safe formatter."""
+        self.generic_visit(node)  # Transform children first
+        
+        if isinstance(node.func, ast.Attribute) and node.func.attr in ('format', 'format_map'):
+            template_expr = node.func.value
+            
+            if node.func.attr == 'format':
+                # Rewrite: template.format(*args, **kwargs)
+                # Into:    __safe_formatter__.format(template, *args, **kwargs)
+                new_call = ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Name(id='__safe_formatter__', ctx=ast.Load()),
+                        attr='format',
+                        ctx=ast.Load()
+                    ),
+                    args=[template_expr] + node.args,
+                    keywords=node.keywords
+                )
+                ast.copy_location(new_call, node)
+                return new_call
+            
+            elif node.func.attr == 'format_map':
+                # Rewrite: template.format_map(mapping)
+                # Into:    __safe_formatter__.vformat(template, (), mapping)
+                new_call = ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Name(id='__safe_formatter__', ctx=ast.Load()),
+                        attr='vformat',
+                        ctx=ast.Load()
+                    ),
+                    args=[
+                        template_expr,
+                        ast.Constant(value=()),
+                        node.args[0] if node.args else ast.Dict(keys=[], values=[])
+                    ],
+                    keywords=[]
+                )
+                ast.copy_location(new_call, node)
+                return new_call
+        
+        return node
+    
     def visit_Name(self, node):
         """Block assignment to protected sandbox names."""
         if isinstance(node.ctx, (ast.Store, ast.Del)) and node.id in _protected_names:
             raise SyntaxError(self._make_error(f"Cannot modify protected name '{node.id}'", node.lineno))
+        return node
+    
+    def visit_ExceptHandler(self, node):
+        """Block bare 'except:' and 'except BaseException:' which could catch the timeout."""
+        self.generic_visit(node)
+        if node.type is None:
+            # Bare 'except:' catches everything including BaseException
+            raise SyntaxError(self._make_error(
+                "Bare 'except:' is not allowed (use 'except Exception:' instead)", node.lineno))
+        if isinstance(node.type, ast.Name) and node.type.id == 'BaseException':
+            raise SyntaxError(self._make_error(
+                "'except BaseException' is not allowed (use 'except Exception:' instead)", node.lineno))
         return node
     
     def visit_Import(self, node):
@@ -1114,6 +1210,14 @@ def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
     top_level = name.split('.')[0]
     if top_level not in _allowed_modules:
         raise ImportError(f"Module '{name}' is not allowed. Allowed modules: {', '.join(sorted(_allowed_modules))}")
+    
+    # Intercept 'import re' to return the safe wrapper instead of the real module
+    if name == 're':
+        global _real_re_module
+        if _real_re_module is None:
+            _real_re_module = _real_import('re')
+        return _safe_re_instance
+    
     return _real_import(name, globals, locals, fromlist, level)
 
 
@@ -1304,6 +1408,9 @@ def setup_sandbox(user_code, user_globals, timeout_seconds):
     
     # Add the safe getattr function for transformed attribute access
     user_globals['__safe_getattr__'] = _safe_getattr
+    
+    # Add the safe formatter for transformed .format() calls
+    user_globals['__safe_formatter__'] = _safe_formatter
     
     # Set recursion stack limit
     sys.setrecursionlimit(500)

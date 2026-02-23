@@ -4,8 +4,12 @@
 import sys
 from io import StringIO
 
-class _TimeoutError(Exception):
-    """Custom timeout exception for execution time limit."""
+class _TimeoutError(BaseException):
+    """Custom timeout exception for execution time limit.
+    
+    Inherits from BaseException (not Exception) so that user code with
+    'except Exception:' or 'except:' clauses cannot suppress the timeout.
+    """
     pass
 
 
@@ -25,9 +29,14 @@ def execute_code(compiled_code, user_globals, timeout_seconds):
     import time as _time
     
     _start_time = _time.time()
+    _timed_out = False
     
     def _timeout_trace(frame, event, arg):
-        if _time.time() - _start_time > timeout_seconds:
+        nonlocal _timed_out
+        if _timed_out or _time.time() - _start_time > timeout_seconds:
+            # Set flag so that even if user code catches the exception,
+            # the very next trace event will re-raise immediately.
+            _timed_out = True
             raise _TimeoutError(f"Execution exceeded {timeout_seconds} second time limit")
         return _timeout_trace
     
