@@ -136,8 +136,7 @@ struct AlgorithmSearchView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 4)
       }
-      .buttonStyle(.borderedProminent)
-      .glassEffect()
+      .buttonStyle(.glassProminent)
       .disabled(!viewModel.canGenerate || viewModel.modelUnavailable)
     }
     .padding()

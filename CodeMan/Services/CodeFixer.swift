@@ -130,7 +130,7 @@ struct CodeFixer {
   var isAvailable: Bool {
     SystemLanguageModel.default.isAvailable && SystemLanguageModel.default.supportsLocale()
   }
-
+  
   private func tryFixMissingImport(code: String, error: String) -> String? {
     let nameErrorPattern = /NameError: name '(\w+)' is not defined/
     let moduleErrorPattern = /ModuleNotFoundError: No module named '(\w+)'/
