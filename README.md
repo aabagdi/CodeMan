@@ -20,4 +20,4 @@ An iOS app that either lets the user scan handwritten/typed pseudocode or type a
 - Highlighter
 
 ## Download
-  [Download from App Store](apps.apple.com/us/app/algorithmman/id6759346966)
+  [Download from App Store](https://apps.apple.com/us/app/algorithmman/id6759346966)
