@@ -12,12 +12,13 @@ An iOS app that either lets the user scan handwritten/typed pseudocode or type a
 - Persistent storage with iCloud syncing between user's devices
   
 ## Technologies
-- SwiftUI
-- Vision
-- Foundation Models
-- C interop with Python/C API
-- SQLiteData
-- Highlighter
+- SwiftUI for main UI
+- AVFoundation for camera integration
+- Vision for OCR
+- Foundation Models for code/description translation
+- C interop with Python/C API for execution
+- SQLiteData for data persistence and iCloud sync
+- Highlighter for syntax highlighting
 
 ## Download
   [Download from App Store](https://apps.apple.com/us/app/algorithmman/id6759346966)
