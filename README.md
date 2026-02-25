@@ -2,7 +2,7 @@
   
 An iOS app that either lets the user scan handwritten/typed pseudocode or type an algorithm description, feeds that image/description to Apple Intelligence and generates runnable, editable Python.
 
-  ## Features:
+## Features:
 - Take a photo or select one from Photos library
 - Alternatively, describe an algorithm in plain text
 - OCRs text using Vision
@@ -11,7 +11,7 @@ An iOS app that either lets the user scan handwritten/typed pseudocode or type a
 - Edit and refine code with syntax highlighting
 - Persistent storage with iCloud syncing between user's devices
   
-  ## Technologies
+## Technologies
 - SwiftUI
 - Vision
 - Foundation Models
